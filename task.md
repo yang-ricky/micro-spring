@@ -13,15 +13,15 @@
 ### 任务1：搭建项目结构与环境
 **场景**：初始化一个最基础的项目框架
 
-- [x] **创建 Maven 项目**  
+- [ ] **创建 Maven 项目**  
   - 目录结构：`src/main/java` + `src/test/java`  
   - 在 `pom.xml` 中定义 `groupId`, `artifactId`, `version`, 并确保能正常编译
 
-- [x] **定义核心类**：
+- [ ] **定义核心类**：
   1. `BeanFactory`：用于管理和获取 Bean 的核心容器类  
   2. `BeanDefinition`：用于描述 Bean 的类、作用域、初始化方法等元信息  
 
-- [x] **编写简单测试** 或 main 方法，验证工程能正常运行
+- [ ] **编写简单测试** 或 main 方法，验证工程能正常运行
 
 **产出要求**：
 1. 控制台可打印 “Micro Spring 启动”，或类似欢迎语  

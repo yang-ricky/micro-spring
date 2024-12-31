@@ -2,3 +2,4 @@ target/
 .idea
 micro-spring.iml
 info.txt
+*.iml
