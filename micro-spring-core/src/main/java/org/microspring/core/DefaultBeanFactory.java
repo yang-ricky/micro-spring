@@ -180,4 +180,13 @@ public class DefaultBeanFactory implements BeanFactory {
         Constructor<?> constructor = beanClass.getDeclaredConstructor(paramTypes);
         return constructor.newInstance(paramValues);
     }
+
+    public BeanDefinition getBeanDefinition(String name) {
+        return beanDefinitionMap.get(name);
+    }
+
+    @Override
+    public boolean containsBean(String name) {
+        return beanDefinitionMap.containsKey(name);
+    }
 } 

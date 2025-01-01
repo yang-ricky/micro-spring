@@ -19,4 +19,11 @@ public interface BeanFactory {
      * @return bean实例
      */
     <T> T getBean(String name, Class<T> requiredType);
+    
+    /**
+     * 检查是否包含指定的Bean
+     * @param name bean的名称
+     * @return 如果包含返回true，否则返回false
+     */
+    boolean containsBean(String name);
 } 

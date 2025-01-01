@@ -108,11 +108,11 @@
 ### 任务5：分层设计 + `ApplicationContext`
 **场景**：类似 Spring 的 `BeanFactory` + `ApplicationContext`
 
-- [ ] **拆分接口与实现**：  
+- [x] **拆分接口与实现**：  
   - `BeanFactory` 只定义获取 Bean、注册 BeanDefinition 等核心方法  
   - `DefaultBeanFactory` 作为基本实现
 
-- [ ] **引入 `ApplicationContext`**  
+- [x] **引入 `ApplicationContext`**  
   - `ApplicationContext` 封装更多高级功能：资源加载、事件发布  
   - `ClassPathXmlApplicationContext`：一次性加载指定路径下的 XML 并执行 `refresh()`  
   - 在 `refresh()` 中统一完成**BeanDefinition 注册** + **Bean 创建**
