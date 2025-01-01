@@ -56,25 +56,10 @@ public class DefaultBeanFactory implements BeanFactory {
     
     protected Object createBean(String beanName, BeanDefinition bd) {
         try {
-            // 1. 处理构造器注入
-            Object bean;
-            List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
-            if (!constructorArgs.isEmpty()) {
-                Class<?>[] paramTypes = new Class<?>[constructorArgs.size()];
-                Object[] paramValues = new Object[constructorArgs.size()];
-                for (int i = 0; i < constructorArgs.size(); i++) {
-                    ConstructorArg arg = constructorArgs.get(i);
-                    paramTypes[i] = arg.getType();
-                    paramValues[i] = arg.isRef() ? 
-                        getBean(arg.getRef()) : arg.getValue();
-                }
-                Constructor<?> constructor = bd.getBeanClass().getConstructor(paramTypes);
-                bean = constructor.newInstance(paramValues);
-            } else {
-                bean = bd.getBeanClass().newInstance();
-            }
-
-            // 2. 处理属性注入
+            // 1. 创建实例（处理构造器注入）
+            Object bean = createBeanInstance(bd);
+            
+            // 2. 处理 XML 配置的属性注入
             for (PropertyValue pv : bd.getPropertyValues()) {
                 String name = pv.getName();
                 Object value = pv.getValue();
@@ -92,21 +77,12 @@ public class DefaultBeanFactory implements BeanFactory {
                 field.set(bean, value);
             }
             
-            // 3. 处理@Autowired注解
-            for (Field field : bd.getBeanClass().getDeclaredFields()) {
-                if (field.isAnnotationPresent(Autowired.class)) {
-                    field.setAccessible(true);
-                    Object value = getBean(field.getType());
-                    field.set(bean, value);
-                }
-            }
-            
-            // 4. 处理Aware回调
+            // 3. 处理 Aware 回调
             if (bean instanceof BeanNameAware) {
                 ((BeanNameAware)bean).setBeanName(beanName);
             }
             
-            // 5. 调用初始化方法
+            // 4. 调用初始化方法
             String initMethodName = bd.getInitMethodName();
             if (initMethodName != null && !initMethodName.isEmpty()) {
                 Method initMethod = bd.getBeanClass().getDeclaredMethod(initMethodName);
@@ -157,25 +133,19 @@ public class DefaultBeanFactory implements BeanFactory {
     }
 
     private Object createBeanInstance(BeanDefinition bd) throws Exception {
-        Class<?> beanClass = bd.getBeanClass();
-        List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
-        
-        if (constructorArgs.isEmpty()) {
-            return beanClass.getDeclaredConstructor().newInstance();
+        List<ConstructorArg> args = bd.getConstructorArgs();
+        if (!args.isEmpty()) {
+            Class<?>[] paramTypes = new Class<?>[args.size()];
+            Object[] paramValues = new Object[args.size()];
+            for (int i = 0; i < args.size(); i++) {
+                ConstructorArg arg = args.get(i);
+                paramTypes[i] = arg.getType();
+                paramValues[i] = arg.isRef() ? getBean(arg.getRef()) : arg.getValue();
+            }
+            Constructor<?> ctor = bd.getBeanClass().getConstructor(paramTypes);
+            return ctor.newInstance(paramValues);
         }
-        
-        // 处理构造器参数
-        Class<?>[] paramTypes = new Class<?>[constructorArgs.size()];
-        Object[] paramValues = new Object[constructorArgs.size()];
-        
-        for (int i = 0; i < constructorArgs.size(); i++) {
-            ConstructorArg arg = constructorArgs.get(i);
-            paramTypes[i] = arg.getType();
-            paramValues[i] = arg.isRef() ? getBean(arg.getRef()) : arg.getValue();
-        }
-        
-        Constructor<?> constructor = beanClass.getDeclaredConstructor(paramTypes);
-        return constructor.newInstance(paramValues);
+        return bd.getBeanClass().newInstance();
     }
 
     public BeanDefinition getBeanDefinition(String name) {
@@ -191,13 +161,37 @@ public class DefaultBeanFactory implements BeanFactory {
         return beanDefinitionMap.keySet();
     }
 
+    @Override   
     public <T> T getBean(Class<T> requiredType) {
+        List<String> matchingBeans = new ArrayList<>();
+        String exactMatch = null;
+        
         for (String beanName : beanDefinitionMap.keySet()) {
             BeanDefinition bd = beanDefinitionMap.get(beanName);
             if (requiredType.isAssignableFrom(bd.getBeanClass())) {
-                return (T) getBean(beanName);
+                matchingBeans.add(beanName);
+                if (bd.getBeanClass() == requiredType) {
+                    exactMatch = beanName;
+                }
             }
         }
-        throw new RuntimeException("No bean of type '" + requiredType.getName() + "' is defined");
+        
+        if (matchingBeans.isEmpty()) {
+            throw new RuntimeException("No bean of type '" + requiredType.getName() + "' is defined");
+        }
+        
+        // 优先返回精确匹配的bean
+        if (exactMatch != null) {
+            return (T) getBean(exactMatch);
+        }
+        
+        // 如果只有一个匹配的bean，返回它
+        if (matchingBeans.size() == 1) {
+            return (T) getBean(matchingBeans.get(0));
+        }
+        
+        // 如果有多个匹配但没有精确匹配，抛出异常
+        throw new RuntimeException("Multiple beans found for type '" + requiredType.getName() 
+            + "': " + matchingBeans);
     }
 } 

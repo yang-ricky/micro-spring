@@ -1,34 +1,43 @@
 package org.microspring.context.support;
 
+import org.microspring.beans.factory.annotation.Value;
 import org.microspring.context.ApplicationContext;
 import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.BeanDefinition;
 import org.microspring.core.io.ClassPathBeanDefinitionScanner;
+import org.microspring.beans.factory.annotation.Autowired;
+import org.microspring.beans.factory.annotation.Qualifier;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.lang.reflect.Field;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {
-    protected final DefaultBeanFactory beanFactory;
-    protected final long startupDate;
+    protected DefaultBeanFactory beanFactory;
+    protected ValueResolver valueResolver;
     
     public AbstractApplicationContext() {
         this.beanFactory = new DefaultBeanFactory();
-        this.startupDate = System.currentTimeMillis();
+        this.valueResolver = new DefaultValueResolver();
     }
     
     @Override
     public Object getBean(String name) {
-        return beanFactory.getBean(name);
+        Object bean = beanFactory.getBean(name);
+        injectDependencies(bean);
+        return bean;
     }
     
     @Override
     public <T> T getBean(String name, Class<T> requiredType) {
-        return beanFactory.getBean(name, requiredType);
+        T bean = beanFactory.getBean(name, requiredType);
+        injectDependencies(bean);
+        return bean;
     }
     
     @Override
     public long getStartupDate() {
-        return startupDate;
+        return System.currentTimeMillis();
     }
     
     @Override
@@ -57,13 +66,49 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @Override
     public <T> T getBean(Class<T> requiredType) {
-        // 遍历所有BeanDefinition，找到匹配的类型
-        for (String beanName : beanFactory.getBeanDefinitionNames()) {
-            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
-            if (requiredType.isAssignableFrom(bd.getBeanClass())) {
-                return (T) getBean(beanName);
+        T bean = beanFactory.getBean(requiredType);
+        injectDependencies(bean);
+        return bean;
+    }
+    
+    protected void injectDependencies(Object bean) {
+        Class<?> clazz = bean.getClass();
+        for (Field field : clazz.getDeclaredFields()) {
+            // 处理 @Value 注解
+            Value valueAnn = field.getAnnotation(Value.class);
+            if (valueAnn != null) {
+                String expression = valueAnn.value();
+                Object resolvedValue = valueResolver.resolveValue(expression);
+                try {
+                    field.setAccessible(true);
+                    field.set(bean, resolvedValue);
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException("Failed to inject @Value: " + expression, e);
+                }
+                continue;
+            }
+            
+            // 处理 @Autowired 注解
+            Autowired autowired = field.getAnnotation(Autowired.class);
+            if (autowired != null) {
+                Qualifier qualifier = field.getAnnotation(Qualifier.class);
+                Object valueToInject;
+                
+                if (qualifier != null) {
+                    // 如果有 @Qualifier，通过名称获取 bean
+                    valueToInject = getBean(qualifier.value());
+                } else {
+                    // 如果没有 @Qualifier，通过类型获取 bean
+                    valueToInject = getBean(field.getType());
+                }
+                
+                try {
+                    field.setAccessible(true);
+                    field.set(bean, valueToInject);
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException("Failed to inject field: " + field, e);
+                }
             }
         }
-        throw new RuntimeException("No bean of type '" + requiredType.getName() + "' is defined");
     }
 } 
