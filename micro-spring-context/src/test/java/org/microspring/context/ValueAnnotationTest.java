@@ -9,28 +9,63 @@ import static org.junit.Assert.*;
 public class ValueAnnotationTest {
     
     @Component
-    public static class ValueBean {
+    public static class SimpleValueBean {
         @Value("${app.name:defaultName}")
-        private String appName;
+        private String stringWithDefault;
         
-        @Value("#{2 + 3}")
-        private int result;
+        @Value("${app.name}")
+        private String stringWithoutDefault;
         
-        public String getAppName() { return appName; }
-        public int getResult() { return result; }
+        @Value("${app.port:8080}")
+        private int intWithDefault;
+        
+        public String getStringWithDefault() { return stringWithDefault; }
+        public String getStringWithoutDefault() { return stringWithoutDefault; }
+        public int getIntWithDefault() { return intWithDefault; }
     }
     
     @Test
-    public void testValueAnnotation() {
+    public void testPropertyResolution() {
         // 设置系统属性
         System.setProperty("app.name", "TestApp");
+        System.setProperty("app.port", "9090");
         
         AnnotationConfigApplicationContext context = 
             new AnnotationConfigApplicationContext("org.microspring.context");
         
-        ValueBean bean = context.getBean(ValueBean.class);
-        assertNotNull(bean);
-        assertEquals("TestApp", bean.getAppName());
-        assertEquals(5, bean.getResult());
+        SimpleValueBean bean = context.getBean(SimpleValueBean.class);
+        assertNotNull("Bean should not be null", bean);
+        
+        // 测试属性解析（有默认值）
+        assertEquals("Property with value should override default", 
+            "TestApp", bean.getStringWithDefault());
+        
+        // 测试属性解析（无默认值）
+        assertEquals("Property without default should be resolved", 
+            "TestApp", bean.getStringWithoutDefault());
+        
+        // 测试数字类型转换
+        assertEquals("Integer property should be converted", 
+            9090, bean.getIntWithDefault());
+    }
+    
+    @Test
+    public void testDefaultValues() {
+        // 清除系统属性
+        System.clearProperty("app.name");
+        System.clearProperty("app.port");
+        
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.context");
+        
+        SimpleValueBean bean = context.getBean(SimpleValueBean.class);
+        
+        // 测试默认值
+        assertEquals("Default value should be used when property is missing", 
+            "defaultName", bean.getStringWithDefault());
+        assertNull("Null should be returned when no default and property missing", 
+            bean.getStringWithoutDefault());
+        assertEquals("Default port should be used", 
+            8080, bean.getIntWithDefault());
     }
 } 

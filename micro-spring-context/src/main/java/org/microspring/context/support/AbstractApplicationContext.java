@@ -81,7 +81,8 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                 Object resolvedValue = valueResolver.resolveValue(expression);
                 try {
                     field.setAccessible(true);
-                    field.set(bean, resolvedValue);
+                    Object convertedValue = convertValueIfNecessary(field.getType(), resolvedValue);
+                    field.set(bean, convertedValue);
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException("Failed to inject @Value: " + expression, e);
                 }
@@ -110,5 +111,46 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                 }
             }
         }
+    }
+    
+    private Object convertValueIfNecessary(Class<?> targetType, Object value) {
+        if (value == null) {
+            return null;
+        }
+        
+        // 如果类型已经匹配，直接返回
+        if (targetType.isInstance(value)) {
+            return value;
+        }
+        
+        // String -> 基本类型的转换
+        String strValue = value.toString();
+        if (targetType == int.class || targetType == Integer.class) {
+            return Integer.parseInt(strValue);
+        }
+        if (targetType == long.class || targetType == Long.class) {
+            return Long.parseLong(strValue);
+        }
+        if (targetType == boolean.class || targetType == Boolean.class) {
+            return Boolean.parseBoolean(strValue);
+        }
+        if (targetType == double.class || targetType == Double.class) {
+            return Double.parseDouble(strValue);
+        }
+        if (targetType == float.class || targetType == Float.class) {
+            return Float.parseFloat(strValue);
+        }
+        if (targetType == short.class || targetType == Short.class) {
+            return Short.parseShort(strValue);
+        }
+        if (targetType == byte.class || targetType == Byte.class) {
+            return Byte.parseByte(strValue);
+        }
+        if (targetType == char.class || targetType == Character.class) {
+            return strValue.length() > 0 ? strValue.charAt(0) : '\0';
+        }
+        
+        // 如果没有合适的转换，返回原值
+        return value;
     }
 } 
