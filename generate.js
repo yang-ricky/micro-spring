@@ -23,6 +23,24 @@ const outputFilePath = path.join(rootDir, 'output.txt');
 await fs.writeFile(outputFilePath, '', 'utf8');
 
 /**
+ * 移除 Java 代码中的注释
+ * @param {string} code - Java 源代码
+ * @returns {string} - 移除注释后的代码
+ */
+function removeComments(code) {
+    // 移除多行注释 /* ... */
+    code = code.replace(/\/\*[\s\S]*?\*\//g, '');
+    
+    // 移除单行注释 //
+    code = code.replace(/\/\/.*$/gm, '');
+    
+    // 移除空行
+    code = code.replace(/^\s*[\r\n]/gm, '');
+    
+    return code;
+}
+
+/**
  * 递归遍历目录并处理文件
  * @param {string} dir - 当前目录路径
  */
@@ -55,9 +73,10 @@ async function traverseDirectory(dir) {
                     try {
                         // 读取文件内容
                         const data = await fs.readFile(fullPath, 'utf8');
-                        // 追加内容到输出文件，并添加文件路径作为分隔符
+                        // 移除注释后再写入文件
+                        const cleanedData = removeComments(data);
                         await fs.appendFile(outputFilePath, `\n\n=== ${fullPath} ===\n\n`, 'utf8');
-                        await fs.appendFile(outputFilePath, data, 'utf8');
+                        await fs.appendFile(outputFilePath, cleanedData, 'utf8');
                         console.log(`已合并文件: ${fullPath}`);
                     } catch (err) {
                         console.error(`读取或写入文件时出错: ${fullPath}`, err);
