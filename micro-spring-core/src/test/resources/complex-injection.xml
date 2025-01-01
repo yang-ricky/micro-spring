@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <bean id="complexBean" class="org.microspring.core.ComplexInjectionTest$ComplexBean">
+        <property name="stringList">
+            <list>
+                <value>first</value>
+                <value>second</value>
+                <value>third</value>
+            </list>
+        </property>
+        <property name="numberMap">
+            <map>
+                <entry key="answer" value="42"/>
+                <entry key="lucky" value="7"/>
+            </map>
+        </property>
+    </bean>
+</beans> 

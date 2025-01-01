@@ -71,19 +71,19 @@
 ### 任务4：实现简单的依赖注入（构造器注入 & 属性注入）
 **场景**：Bean A 依赖 Bean B，需要容器帮忙注入
 
-- [ ] **构造器注入**  
+- [x] **构造器注入**  
   - 在 `BeanDefinition` 增加 `constructorArgs`  
   - 在 Bean 创建时，通过 `clazz.getConstructor(...)` + `newInstance(...)` 传入依赖
 
-- [ ] **属性注入（Setter 注入）**  
+- [x] **属性注入（Setter 注入）**  
   - 在 `BeanDefinition` 增加 `PropertyValues`  
   - 在 Bean 完成实例化后，用反射调用 `setXxx(...)`
 
-- [ ] **回调注入**（简单体验）  
+- [x] **回调注入**（简单体验）  
   - 如果某个 Bean 需要在注入后做回调（如 `Aware` 接口思想），可以在“属性注入”后调用它的回调方法  
   - 比如自定义一个 `BeanNameAware`，让 Bean 可以感知自己的 `beanName`
 
-- [ ] **复杂类型注入**  
+- [x] **复杂类型注入**  
   - 在 XML 中配置 `<property name="address"><value>xxxxx</value></property>` 或 `<list>`, `<map>` 等集合类型  
   - 在加载时转换为对应的集合或对象
 

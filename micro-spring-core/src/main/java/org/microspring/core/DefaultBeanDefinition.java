@@ -1,9 +1,16 @@
 package org.microspring.core;
 
+import org.microspring.core.beans.ConstructorArg;
+import org.microspring.core.beans.PropertyValue;
+import java.util.ArrayList;
+import java.util.List;
+
 public class DefaultBeanDefinition implements BeanDefinition {
     private Class<?> beanClass;
     private String scope = "singleton";
     private String initMethodName;
+    private final List<ConstructorArg> constructorArgs = new ArrayList<>();
+    private final List<PropertyValue> propertyValues = new ArrayList<>();
 
     public DefaultBeanDefinition(Class<?> beanClass) {
         this.beanClass = beanClass;
@@ -35,5 +42,25 @@ public class DefaultBeanDefinition implements BeanDefinition {
 
     public void setInitMethodName(String initMethodName) {
         this.initMethodName = initMethodName;
+    }
+
+    @Override
+    public List<ConstructorArg> getConstructorArgs() {
+        return constructorArgs;
+    }
+
+    @Override
+    public List<PropertyValue> getPropertyValues() {
+        return propertyValues;
+    }
+
+    @Override
+    public void addConstructorArg(ConstructorArg arg) {
+        constructorArgs.add(arg);
+    }
+
+    @Override
+    public void addPropertyValue(PropertyValue propertyValue) {
+        propertyValues.add(propertyValue);
     }
 } 

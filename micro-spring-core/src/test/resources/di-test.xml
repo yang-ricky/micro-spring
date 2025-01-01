@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <bean id="engine" class="org.microspring.core.DependencyInjectionTest$Engine">
+        <property name="type" value="V8"/>
+    </bean>
+    
+    <bean id="car" class="org.microspring.core.DependencyInjectionTest$Car">
+        <constructor-arg type="org.microspring.core.DependencyInjectionTest$Engine" ref="engine"/>
+        <property name="brand" value="Tesla"/>
+    </bean>
+</beans> 
