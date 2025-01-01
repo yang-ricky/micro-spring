@@ -10,6 +10,8 @@ import org.microspring.beans.factory.annotation.Qualifier;
 
 import java.util.List;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.annotation.Annotation;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {
     protected DefaultBeanFactory beanFactory;
@@ -72,8 +74,10 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     protected void injectDependencies(Object bean) {
         Class<?> clazz = bean.getClass();
+        
+        // 1. 处理字段注入
         for (Field field : clazz.getDeclaredFields()) {
-            // 处理 @Value 注解
+            // 现有的字段注入代码保持不变
             Value valueAnn = field.getAnnotation(Value.class);
             if (valueAnn != null) {
                 String expression = valueAnn.value();
@@ -88,17 +92,14 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                 continue;
             }
             
-            // 处理 @Autowired 注解
             Autowired autowired = field.getAnnotation(Autowired.class);
             if (autowired != null) {
                 Qualifier qualifier = field.getAnnotation(Qualifier.class);
                 Object valueToInject;
                 
                 if (qualifier != null) {
-                    // 如果有 @Qualifier，通过名称获取 bean
                     valueToInject = getBean(qualifier.value());
                 } else {
-                    // 如果没有 @Qualifier，通过类型获取 bean
                     valueToInject = getBean(field.getType());
                 }
                 
@@ -107,6 +108,41 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                     field.set(bean, valueToInject);
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException("Failed to inject field: " + field, e);
+                }
+            }
+        }
+        
+        // 2. 处理方法注入（包括setter方法和普通方法）
+        for (Method method : clazz.getDeclaredMethods()) {
+            Autowired autowired = method.getAnnotation(Autowired.class);
+            if (autowired != null) {
+                Class<?>[] paramTypes = method.getParameterTypes();
+                Annotation[][] paramAnnotations = method.getParameterAnnotations();
+                Object[] args = new Object[paramTypes.length];
+                
+                // 处理每个参数
+                for (int i = 0; i < paramTypes.length; i++) {
+                    Qualifier qualifier = null;
+                    // 查找参数上的 @Qualifier 注解
+                    for (Annotation ann : paramAnnotations[i]) {
+                        if (ann instanceof Qualifier) {
+                            qualifier = (Qualifier) ann;
+                            break;
+                        }
+                    }
+                    
+                    if (qualifier != null) {
+                        args[i] = getBean(qualifier.value());
+                    } else {
+                        args[i] = getBean(paramTypes[i]);
+                    }
+                }
+                
+                try {
+                    method.setAccessible(true);
+                    method.invoke(bean, args);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to inject method: " + method, e);
                 }
             }
         }
