@@ -126,16 +126,16 @@
 ### 任务6：注解驱动 IoC（组件扫描）
 **场景**：支持 `@Component`, `@Autowired` 等注解，减少 XML 配置
 
-- [ ] **组件扫描**  
+- [x] **组件扫描**  
   - 在 `ApplicationContext` 里添加 “包扫描” 功能  
   - 遍历目标包的所有类，凡是带 `@Component` 就自动注册为 BeanDefinition  
   - Bean 的 `scope`、`init-method` 等可在注解或默认值中指定（如 `@Scope("prototype")`）
 
-- [ ] **自动装配**  
+- [x] **自动装配**  
   - 对字段或构造器参数带 `@Autowired` 时，自动根据类型查找候选 Bean  
   - 如果有多个同类型 Bean，可用 `@Qualifier` 区分
 
-- [ ] **属性注入 + SpEL 支持**  
+- [x] **属性注入 + SpEL 支持**  
   - 在字段或 `@Value("#{systemProperties['user.home']}")` 之类的场景  
   - 先只需实现简单表达式，如 `@Value("${db.url}")` 从配置文件中读取；或 `@Value("#{1+2}")` 进行简单运算
 
