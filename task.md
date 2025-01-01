@@ -296,6 +296,63 @@
 
 ---
 
+### 任务14：基于 SPI 实现可插拔的日志系统与类加载器扩展
+**场景**：在不修改核心代码的情况下，允许用户自定义日志实现和类加载策略
+
+#### 14.1 日志系统 SPI
+- [ ] **定义日志 SPI 接口**
+```java
+public interface MicroSpringLogger {
+    void info(String message);
+    void error(String message, Throwable t);
+    // ... 其他日志级别
+}
+```
+
+- [ ] **提供默认实现**（使用标准 ClassLoader）
+- [ ] **允许外部实现**（如集成 Log4j、Logback）
+  - 在 `META-INF/services/org.microspring.logger.MicroSpringLogger` 中配置实现类
+  - BeanFactory 启动时自动探测并加载可用的日志实现
+
+#### 14.2 类加载器 SPI
+- [ ] **定义类加载 SPI 接口**
+```java
+public interface BeanClassLoader {
+    Class<?> loadClass(String className) throws ClassNotFoundException;
+    // 可选：支持热加载等高级特性
+    boolean isReloadable(String className);
+}
+```
+
+- [ ] **提供默认实现**（使用标准 ClassLoader）
+- [ ] **允许自定义实现**（如支持热加载、特殊类路径等）
+  - 在 `META-INF/services/org.microspring.core.BeanClassLoader` 中配置实现类
+  - 在 BeanFactory 创建 Bean 时使用自定义的类加载策略
+
+#### 实际应用场景
+1. **日志系统的实际应用**
+   - 在开发环境使用控制台日志
+   - 在生产环境无缝切换到文件日志，支持日志分级
+   - 特殊场景（如云原生环境）使用结构化日志
+
+2. **类加载器的实际应用**
+   - 支持插件化开发，动态加载新的 Bean 定义
+   - 实现开发环境的热加载功能
+   - 隔离不同模块的类加载，避免依赖冲突
+
+**产出要求**：
+1. 在不修改 Micro-Spring 核心代码的情况下，能够切换日志实现
+2. 支持自定义类加载策略，解决实际的类加载问题
+3. 提供完整的示例代码，展示如何编写和配置 SPI 实现
+4. 编写文档说明 SPI 的优势和最佳实践
+
+**验收标准**：
+1. 创建一个测试模块，演示不同日志实现的切换
+2. 实现一个支持热加载的类加载器，用于开发环境
+3. 性能测试报告，确保 SPI 机制不会带来明显的性能开销
+
+---
+
 ## 附加任务（可选拓展）
 
 1. **集成 JDBC 或其他外部资源**  
@@ -335,3 +392,5 @@
 9. **条件装配 + 多环境配置**  
    - 针对 dev / test / prod 多环境，通过 `@Profile` 或 `@Conditional` 控制 Bean 是否注入  
    - 在容器启动时判断当前激活环境变量  
+
+
