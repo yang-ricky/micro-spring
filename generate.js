@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 添加 isAll 配置
+const isAll = true;
+
 // 指定要搜索的类名
 const className = [
     "BeanDefinition",
@@ -44,6 +47,26 @@ function removeComments(code) {
 }
 
 /**
+ * 检查文件是否应该被处理
+ * @param {string} filePath - 文件路径
+ * @param {string} fileName - 文件名
+ * @returns {boolean} - 是否应该处理该文件
+ */
+function shouldProcessFile(filePath, fileName) {
+    // 排除测试文件
+    if (filePath.includes('test') || fileName.includes('Test')) {
+        return false;
+    }
+
+    if (isAll) {
+        return true;
+    }
+
+    // 当 isAll 为 false 时，使用原来的类名匹配逻辑
+    return className.some(name => fileName.includes(name));
+}
+
+/**
  * 递归遍历目录并处理文件
  * @param {string} dir - 当前目录路径
  */
@@ -69,10 +92,8 @@ async function traverseDirectory(dir) {
                     continue;
                 }
 
-                // 检查文件名是否包含任何指定的类名
-                const matches = className.some(name => item.name.includes(name));
-
-                if (matches) {
+                // 使用新的文件过滤逻辑
+                if (shouldProcessFile(fullPath, item.name)) {
                     try {
                         // 读取文件内容
                         const data = await fs.readFile(fullPath, 'utf8');
