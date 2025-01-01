@@ -32,15 +32,15 @@
 ### 任务2：实现最基本的 IoC 容器
 **场景**：手动注册和获取 Bean
 
-- [ ] **完善 `BeanFactory`**：  
+- [x] **完善 `BeanFactory`**：  
   - `registerBeanDefinition(String beanName, BeanDefinition bd)`  
   - `getBean(String beanName)`
 
-- [ ] **编写 Bean 创建逻辑**：  
+- [x] **编写 Bean 创建逻辑**：  
   - 使用 `Class.forName(...)` 加载 Class  
   - `clazz.getDeclaredConstructor().newInstance()` 实例化
 
-- [ ] **支持单例模式**：  
+- [x] **支持单例模式**：  
   - 在 `BeanFactory` 中维护一个 `singletonObjects: Map<String,Object>` 用于单例缓存  
   - 如果 scope = singleton，则只创建一次
 
