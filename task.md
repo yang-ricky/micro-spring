@@ -53,11 +53,11 @@
 ### 任务3：支持 XML 配置加载
 **场景**：在早期 Spring 中，通过 XML 定义所有 Bean
 
-- [ ] **`XmlBeanDefinitionReader`** 类：  
+- [x] **`XmlBeanDefinitionReader`** 类：  
   - `loadBeanDefinitions(String xmlPath)`  
   - 使用 DOM/SAX/Pull 解析 `<bean>` 标签，读出 `id`, `class`, `scope`, `init-method` 等
 
-- [ ] **`BeanFactory.readBeanDefinitions(xmlPath)`**  
+- [x] **`BeanFactory.readBeanDefinitions(xmlPath)`**  
   - 内部调用 `XmlBeanDefinitionReader` 返回若干 `BeanDefinition`  
   - 逐个 `registerBeanDefinition(beanName, bd)`
 

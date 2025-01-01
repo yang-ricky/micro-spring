@@ -1,7 +1,11 @@
 package org.microspring.core;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.microspring.core.io.BeanDefinitionHolder;
+import org.microspring.core.io.XmlBeanDefinitionReader;
 
 public class DefaultBeanFactory implements BeanFactory {
     
@@ -55,6 +59,14 @@ public class DefaultBeanFactory implements BeanFactory {
             return instance;
         } catch (Exception e) {
             throw new RuntimeException("Error creating bean with class '" + beanClass.getName() + "'", e);
+        }
+    }
+
+    public void loadBeanDefinitions(String xmlPath) {
+        XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader();
+        List<BeanDefinitionHolder> holders = reader.loadBeanDefinitions(xmlPath);
+        for (BeanDefinitionHolder holder : holders) {
+            registerBeanDefinition(holder.getBeanName(), holder.getBeanDefinition());
         }
     }
 } 

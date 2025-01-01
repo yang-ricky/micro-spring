@@ -11,6 +11,9 @@ const className = [
     "BeanDefinition",
     "BeanFactory",
     "DefaultBeanFactory",
+    "DefaultBeanDefinition",
+    "XmlBeanDefinitionReader",
+    "BeanDefinitionHolder",
 ]
 
 // 定义要搜索的根目录
