@@ -1,6 +1,7 @@
 package org.microspring.core.io;
 
 import org.microspring.beans.factory.annotation.Autowired;
+import org.microspring.beans.factory.annotation.Qualifier;
 import org.microspring.core.BeanDefinition;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
@@ -12,6 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
+import java.lang.annotation.Annotation;
+
 
 public class ClassPathBeanDefinitionScanner {
     
@@ -73,7 +77,32 @@ public class ClassPathBeanDefinitionScanner {
 
                     @Override
                     public List<ConstructorArg> getConstructorArgs() {
-                        return new ArrayList<>();
+                        List<ConstructorArg> args = new ArrayList<>();
+                        // 查找带有@Autowired注解的构造器
+                        for (Constructor<?> ctor : clazz.getDeclaredConstructors()) {
+                            if (ctor.isAnnotationPresent(Autowired.class)) {
+                                // 获取构造器的参数
+                                Class<?>[] paramTypes = ctor.getParameterTypes();
+                                Annotation[][] paramAnnotations = ctor.getParameterAnnotations();
+                                
+                                for (int i = 0; i < paramTypes.length; i++) {
+                                    String qualifier = null;
+                                    // 检查参数上的@Qualifier注解
+                                    for (Annotation ann : paramAnnotations[i]) {
+                                        if (ann instanceof Qualifier) {
+                                            qualifier = ((Qualifier) ann).value();
+                                            break;
+                                        }
+                                    }
+                                    // 创建构造器参数
+                                    String ref = qualifier != null ? qualifier : "";
+                                    ConstructorArg arg = new ConstructorArg(ref, null, paramTypes[i]);
+                                    args.add(arg);
+                                }
+                                break; // 只处理第一个带@Autowired的构造器
+                            }
+                        }
+                        return args;
                     }
 
                     @Override

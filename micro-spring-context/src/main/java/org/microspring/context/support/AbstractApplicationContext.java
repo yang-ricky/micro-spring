@@ -9,7 +9,6 @@ import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.lang.reflect.Field;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {

@@ -64,7 +64,7 @@ public class XmlBeanDefinitionReader {
                 NodeList properties = beanElement.getElementsByTagName("property");
                 for (int j = 0; j < properties.getLength(); j++) {
                     Element prop = (Element) properties.item(j);
-                    parsePropertyElement(prop, beanDefinition);
+                    handleProperty(prop, beanDefinition);
                 }
                 
                 System.out.println("[XmlBeanDefinitionReader] Loading bean definition: " + id);
@@ -77,34 +77,38 @@ public class XmlBeanDefinitionReader {
         return holders;
     }
     
-    private void parsePropertyElement(Element property, BeanDefinition bd) {
-        String name = property.getAttribute("name");
-        String value = property.getAttribute("value");
-        String ref = property.getAttribute("ref");
+    private void handleProperty(Element propElement, BeanDefinition bd) {
+        String name = propElement.getAttribute("name");
+        String value = propElement.getAttribute("value");
+        String ref = propElement.getAttribute("ref");
         
-        // 处理复杂类型
-        NodeList listNodes = property.getElementsByTagName("list");
-        NodeList mapNodes = property.getElementsByTagName("map");
-        
+        // 处理List类型的属性
+        NodeList listNodes = propElement.getElementsByTagName("list");
         if (listNodes.getLength() > 0) {
             Element listElement = (Element) listNodes.item(0);
             List<String> list = parseListElement(listElement);
-            bd.addPropertyValue(new PropertyValue(name, list));
-        } else if (mapNodes.getLength() > 0) {
+            bd.addPropertyValue(new PropertyValue(name, list, List.class));
+            return;
+        }
+        
+        // 处理Map类型的属性
+        NodeList mapNodes = propElement.getElementsByTagName("map");
+        if (mapNodes.getLength() > 0) {
             Element mapElement = (Element) mapNodes.item(0);
-            Map<String, String> map = new HashMap<>();
-            NodeList entries = mapElement.getElementsByTagName("entry");
-            for (int i = 0; i < entries.getLength(); i++) {
-                Element entry = (Element) entries.item(i);
-                String key = entry.getAttribute("key");
-                String mapValue = entry.getAttribute("value");
-                map.put(key, mapValue);
-            }
-            bd.addPropertyValue(new PropertyValue(name, map));
-        } else if (ref != null && !ref.isEmpty()) {
-            bd.addPropertyValue(new PropertyValue(name, ref, null));
-        } else {
-            bd.addPropertyValue(new PropertyValue(name, value));
+            Map<String, Object> map = parseMapElement(mapElement);
+            bd.addPropertyValue(new PropertyValue(name, map, Map.class));
+            return;
+        }
+        
+        // 处理引用类型的属性
+        if (ref != null && !ref.isEmpty()) {
+            bd.addPropertyValue(new PropertyValue(name, ref, null, true));
+            return;
+        }
+        
+        // 处理普通值类型的属性
+        if (value != null && !value.isEmpty()) {
+            bd.addPropertyValue(new PropertyValue(name, value, String.class));
         }
     }
     
@@ -115,5 +119,24 @@ public class XmlBeanDefinitionReader {
             list.add(values.item(i).getTextContent());
         }
         return list;
+    }
+    
+    private Map<String, Object> parseMapElement(Element mapElement) {
+        Map<String, Object> map = new HashMap<>();
+        NodeList entries = mapElement.getElementsByTagName("entry");
+        for (int i = 0; i < entries.getLength(); i++) {
+            Element entry = (Element) entries.item(i);
+            String key = entry.getAttribute("key");
+            String strValue = entry.getAttribute("value");
+            
+            // 尝试将值转换为整数
+            try {
+                map.put(key, Integer.parseInt(strValue));
+            } catch (NumberFormatException e) {
+                // 如果转换失败，保持字符串类型
+                map.put(key, strValue);
+            }
+        }
+        return map;
     }
 } 

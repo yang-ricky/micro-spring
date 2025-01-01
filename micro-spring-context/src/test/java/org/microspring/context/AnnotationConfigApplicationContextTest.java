@@ -45,6 +45,23 @@ public class AnnotationConfigApplicationContextTest {
         }
     }
     
+    @Component
+    public static class ServiceWithConstructor {
+        private final ServiceA serviceA;
+        private final ServiceB serviceB;
+
+        @Autowired  // 构造器注入
+        public ServiceWithConstructor(ServiceA serviceA, 
+                                    @Qualifier("serviceB") ServiceB serviceB) {
+            this.serviceA = serviceA;
+            this.serviceB = serviceB;
+        }
+
+        public String getMessageFromBoth() {
+            return serviceA.getMessage() + " & " + serviceB.getMessageFromA();
+        }
+    }
+    
     @Test
     public void testAnnotationBasedContainer() {
         AnnotationConfigApplicationContext context = 
@@ -64,5 +81,17 @@ public class AnnotationConfigApplicationContextTest {
         // 测试@Scope("prototype")
         ServiceB anotherB = context.getBean("serviceB", ServiceB.class);
         assertNotSame("Prototype beans should be different", serviceB, anotherB);
+    }
+    
+    @Test
+    public void testConstructorInjection() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.context");
+        
+        ServiceWithConstructor service = context.getBean(ServiceWithConstructor.class);
+        assertNotNull("Service should be found", service);
+        assertEquals("Messages should be combined correctly",
+            "Hello from ServiceA & Hello from ServiceA", 
+            service.getMessageFromBoth());
     }
 } 
