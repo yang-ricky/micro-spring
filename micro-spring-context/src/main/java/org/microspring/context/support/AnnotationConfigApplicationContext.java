@@ -1,7 +1,6 @@
 package org.microspring.context.support;
 
 import org.microspring.core.BeanDefinition;
-import org.microspring.core.annotation.Component;
 import org.microspring.beans.factory.annotation.Scope;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
@@ -57,9 +56,7 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                             file.getName().substring(0, file.getName().length() - 6);
                         try {
                             Class<?> clazz = Class.forName(className);
-                            if (clazz.isAnnotationPresent(org.microspring.core.annotation.Component.class)) {
-                                registerBean(clazz);
-                            } else if (clazz.isAnnotationPresent(org.microspring.stereotype.Component.class)) {
+                            if (clazz.isAnnotationPresent(org.microspring.stereotype.Component.class)) {
                                 registerBean(clazz);
                             }
                         } catch (ClassNotFoundException e) {
@@ -75,15 +72,10 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
 
     private void registerBean(Class<?> clazz) {
         String beanName;
-        // 分别尝试获取两个包下的Component注解
-        org.microspring.core.annotation.Component coreComponent = 
-            clazz.getAnnotation(org.microspring.core.annotation.Component.class);
         org.microspring.stereotype.Component stereotypeComponent = 
             clazz.getAnnotation(org.microspring.stereotype.Component.class);
         
-        if (coreComponent != null) {
-            beanName = coreComponent.value();
-        } else if (stereotypeComponent != null) {
+        if (stereotypeComponent != null) {
             beanName = stereotypeComponent.value();
         } else {
             throw new RuntimeException("No @Component annotation found on class: " + clazz.getName());

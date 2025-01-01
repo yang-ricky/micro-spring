@@ -2,9 +2,9 @@ package org.microspring.core.io;
 
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.core.BeanDefinition;
-import org.microspring.core.annotation.Component;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
+import org.microspring.stereotype.Component;
 
 import java.io.File;
 import java.net.URL;
