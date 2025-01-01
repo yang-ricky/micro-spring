@@ -161,4 +161,9 @@ public class AnnotationConfigApplicationContextTest {
                     "Specific: Hello from Specific ServiceA", 
                     methodService.getMessages());
     }
+
+    // todo: 测试循环依赖
+    // todo: 测试集合注入
+    // List<MessageService> services
+    // Map<String, MessageService> serviceMap
 } 
