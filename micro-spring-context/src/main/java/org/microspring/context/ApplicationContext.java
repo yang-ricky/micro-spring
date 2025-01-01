@@ -7,4 +7,5 @@ public interface ApplicationContext extends BeanFactory {
     String getApplicationName();
     long getStartupDate();
     boolean containsBean(String name);
+    <T> T getBean(Class<T> requiredType);
 }

@@ -7,12 +7,15 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
+import java.lang.reflect.Field;
 
 import org.microspring.core.io.BeanDefinitionHolder;
 import org.microspring.core.io.XmlBeanDefinitionReader;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
 import org.microspring.core.aware.BeanNameAware;
+import org.microspring.beans.factory.annotation.Autowired;
 
 public class DefaultBeanFactory implements BeanFactory {
     
@@ -51,72 +54,66 @@ public class DefaultBeanFactory implements BeanFactory {
         return (T) bean;
     }
     
-    private Object createBean(String beanName, BeanDefinition bd) {
+    protected Object createBean(String beanName, BeanDefinition bd) {
         try {
-            Object instance = createBeanInstance(bd);
+            // 1. 处理构造器注入
+            Object bean;
+            List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
+            if (!constructorArgs.isEmpty()) {
+                Class<?>[] paramTypes = new Class<?>[constructorArgs.size()];
+                Object[] paramValues = new Object[constructorArgs.size()];
+                for (int i = 0; i < constructorArgs.size(); i++) {
+                    ConstructorArg arg = constructorArgs.get(i);
+                    paramTypes[i] = arg.getType();
+                    paramValues[i] = arg.isRef() ? 
+                        getBean(arg.getRef()) : arg.getValue();
+                }
+                Constructor<?> constructor = bd.getBeanClass().getConstructor(paramTypes);
+                bean = constructor.newInstance(paramValues);
+            } else {
+                bean = bd.getBeanClass().newInstance();
+            }
+
+            // 2. 处理属性注入
+            for (PropertyValue pv : bd.getPropertyValues()) {
+                String name = pv.getName();
+                Object value = pv.getValue();
+                
+                if (value instanceof Map) {
+                    value = handleMapValue((Map<?, ?>)value);
+                } else if (value instanceof List) {
+                    value = handleListValue((List<?>)value);
+                } else if (pv.isRef()) {
+                    value = getBean((String)value);
+                }
+                
+                Field field = bd.getBeanClass().getDeclaredField(name);
+                field.setAccessible(true);
+                field.set(bean, value);
+            }
             
-            // 处理属性注入
-            List<PropertyValue> propertyValues = bd.getPropertyValues();
-            if (propertyValues != null) {
-                for (PropertyValue pv : propertyValues) {
-                    String propertyName = pv.getName();
-                    Object value;
-                    
-                    if (pv.isRef()) {
-                        value = getBean(pv.getRef());
-                    } else {
-                        Object rawValue = pv.getValue();
-                        // 处理复杂类型
-                        if (rawValue instanceof List) {
-                            value = handleListValue((List<?>) rawValue);
-                        } else if (rawValue instanceof Map) {
-                            value = handleMapValue((Map<?, ?>) rawValue);
-                        } else {
-                            value = rawValue;
-                        }
-                    }
-                    
-                    if (value != null) {
-                        String methodName = "set" + propertyName.substring(0, 1).toUpperCase() 
-                            + propertyName.substring(1);
-                        try {
-                            // 获取setter方法的参数类型
-                            Method[] methods = bd.getBeanClass().getMethods();
-                            Method setter = null;
-                            for (Method method : methods) {
-                                if (method.getName().equals(methodName) && method.getParameterCount() == 1) {
-                                    setter = method;
-                                    break;
-                                }
-                            }
-                            
-                            if (setter != null) {
-                                // 如果需要类型转换，在这里处理
-                                Class<?> paramType = setter.getParameterTypes()[0];
-                                if (value instanceof List && paramType == List.class) {
-                                    setter.invoke(instance, value);
-                                } else if (value instanceof Map && paramType == Map.class) {
-                                    setter.invoke(instance, value);
-                                } else {
-                                    setter.invoke(instance, value);
-                                }
-                            } else {
-                                throw new RuntimeException("No setter method found for property: " + propertyName);
-                            }
-                        } catch (Exception e) {
-                            throw new RuntimeException("Error setting property '" + propertyName + "' for bean: " + beanName, e);
-                        }
-                    }
+            // 3. 处理@Autowired注解
+            for (Field field : bd.getBeanClass().getDeclaredFields()) {
+                if (field.isAnnotationPresent(Autowired.class)) {
+                    field.setAccessible(true);
+                    Object value = getBean(field.getType());
+                    field.set(bean, value);
                 }
             }
             
-            // 处理Aware回调
-            if (instance instanceof BeanNameAware) {
-                ((BeanNameAware) instance).setBeanName(beanName);
+            // 4. 处理Aware回调
+            if (bean instanceof BeanNameAware) {
+                ((BeanNameAware)bean).setBeanName(beanName);
             }
             
-            return instance;
+            // 5. 调用初始化方法
+            String initMethodName = bd.getInitMethodName();
+            if (initMethodName != null && !initMethodName.isEmpty()) {
+                Method initMethod = bd.getBeanClass().getDeclaredMethod(initMethodName);
+                initMethod.invoke(bean);
+            }
             
+            return bean;
         } catch (Exception e) {
             throw new RuntimeException("Error creating bean: " + beanName, e);
         }
@@ -188,5 +185,19 @@ public class DefaultBeanFactory implements BeanFactory {
     @Override
     public boolean containsBean(String name) {
         return beanDefinitionMap.containsKey(name);
+    }
+
+    public Set<String> getBeanDefinitionNames() {
+        return beanDefinitionMap.keySet();
+    }
+
+    public <T> T getBean(Class<T> requiredType) {
+        for (String beanName : beanDefinitionMap.keySet()) {
+            BeanDefinition bd = beanDefinitionMap.get(beanName);
+            if (requiredType.isAssignableFrom(bd.getBeanClass())) {
+                return (T) getBean(beanName);
+            }
+        }
+        throw new RuntimeException("No bean of type '" + requiredType.getName() + "' is defined");
     }
 } 

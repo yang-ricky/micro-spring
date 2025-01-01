@@ -2,17 +2,27 @@ package org.microspring.core.beans;
 
 public class PropertyValue {
     private final String name;
-    private final String ref;
     private final Object value;
-    
-    public PropertyValue(String name, String ref, Object value) {
-        this.name = name;
-        this.ref = ref;
-        this.value = value;
+    private final Class<?> type;
+    private final boolean isRef;
+
+    public PropertyValue(String name, Object value) {
+        this(name, value, null, false);
     }
-    
+
+    public PropertyValue(String name, Object value, Class<?> type) {
+        this(name, value, type, false);
+    }
+
+    public PropertyValue(String name, Object value, Class<?> type, boolean isRef) {
+        this.name = name;
+        this.value = value;
+        this.type = type;
+        this.isRef = isRef;
+    }
+
     public String getName() { return name; }
-    public String getRef() { return ref; }
     public Object getValue() { return value; }
-    public boolean isRef() { return ref != null && !ref.isEmpty(); }
+    public Class<?> getType() { return type; }
+    public boolean isRef() { return isRef; }
 } 

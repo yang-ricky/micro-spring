@@ -88,12 +88,8 @@ public class XmlBeanDefinitionReader {
         
         if (listNodes.getLength() > 0) {
             Element listElement = (Element) listNodes.item(0);
-            List<String> list = new ArrayList<>();
-            NodeList values = listElement.getElementsByTagName("value");
-            for (int i = 0; i < values.getLength(); i++) {
-                list.add(values.item(i).getTextContent());
-            }
-            bd.addPropertyValue(new PropertyValue(name, null, list));
+            List<String> list = parseListElement(listElement);
+            bd.addPropertyValue(new PropertyValue(name, list));
         } else if (mapNodes.getLength() > 0) {
             Element mapElement = (Element) mapNodes.item(0);
             Map<String, String> map = new HashMap<>();
@@ -104,11 +100,20 @@ public class XmlBeanDefinitionReader {
                 String mapValue = entry.getAttribute("value");
                 map.put(key, mapValue);
             }
-            bd.addPropertyValue(new PropertyValue(name, null, map));
+            bd.addPropertyValue(new PropertyValue(name, map));
         } else if (ref != null && !ref.isEmpty()) {
             bd.addPropertyValue(new PropertyValue(name, ref, null));
         } else {
-            bd.addPropertyValue(new PropertyValue(name, null, value));
+            bd.addPropertyValue(new PropertyValue(name, value));
         }
+    }
+    
+    private List<String> parseListElement(Element listElement) {
+        List<String> list = new ArrayList<>();
+        NodeList values = listElement.getElementsByTagName("value");
+        for (int i = 0; i < values.getLength(); i++) {
+            list.add(values.item(i).getTextContent());
+        }
+        return list;
     }
 } 
