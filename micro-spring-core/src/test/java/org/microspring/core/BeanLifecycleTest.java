@@ -36,6 +36,6 @@ public class BeanLifecycleTest {
         DemoBean bean = (DemoBean) beanFactory.getBean("demoBean");
         assertNotNull(bean);
         
-        // TODO: 在DefaultBeanFactory中添加close方法来测试destroy回调
+        beanFactory.close();
     }
 } 

@@ -25,6 +25,8 @@ public class DefaultBeanFactory implements BeanFactory {
     private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>();
     private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>();
     
+    private boolean closed = false;
+    
     public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition) {
         this.beanDefinitionMap.put(beanName, beanDefinition);
     }
@@ -293,5 +295,39 @@ public class DefaultBeanFactory implements BeanFactory {
         // 如果有多个匹配但没有精确匹配，抛出异常
         throw new RuntimeException("Multiple beans found for type '" + requiredType.getName() 
             + "': " + matchingBeans);
+    }
+
+    public void close() {
+        if (closed) {
+            return;
+        }
+        
+        // 遍历所有单例bean，调用destroy方法
+        for (Map.Entry<String, Object> entry : singletonObjects.entrySet()) {
+            String beanName = entry.getKey();
+            Object bean = entry.getValue();
+            BeanDefinition bd = getBeanDefinition(beanName);
+            
+            try {
+                invokeDestroyMethod(bean, bd);
+            } catch (Exception e) {
+                throw new RuntimeException("Error destroying bean '" + beanName + "'", e);
+            }
+        }
+        
+        closed = true;
+    }
+    
+    protected void invokeDestroyMethod(Object bean, BeanDefinition bd) {
+        try {
+            String destroyMethodName = bd.getDestroyMethodName();
+            if (destroyMethodName != null && !destroyMethodName.isEmpty()) {
+                Method destroyMethod = bd.getBeanClass().getDeclaredMethod(destroyMethodName);
+                destroyMethod.setAccessible(true);
+                destroyMethod.invoke(bean);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error invoking destroy method", e);
+        }
     }
 } 
