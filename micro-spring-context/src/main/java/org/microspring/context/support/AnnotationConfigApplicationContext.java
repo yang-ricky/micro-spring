@@ -1,5 +1,6 @@
 package org.microspring.context.support;
 
+import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.BeanDefinition;
 import org.microspring.beans.factory.annotation.Scope;
 import org.microspring.beans.factory.annotation.Lazy;
@@ -176,5 +177,10 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         
         // 注册BeanDefinition
         beanFactory.registerBeanDefinition(beanName, bd);
+    }
+
+    // 添加这个方法以支持测试用例
+    public DefaultBeanFactory getBeanFactory() {
+        return this.beanFactory;
     }
 } 

@@ -69,15 +69,10 @@ public class DefaultBeanFactory implements BeanFactory {
             populateBean(bean, bd);
             
             // 3. 处理Aware接口回调
-            if (bean instanceof BeanNameAware) {
-                ((BeanNameAware) bean).setBeanName(beanName);
-            }
-            if (bean instanceof BeanFactoryAware) {
-                ((BeanFactoryAware) bean).setBeanFactory(this);
-            }
+            invokeAwareMethods(beanName, bean);
             
             // 4. 调用初始化方法
-            invokeInitMethod(bean, bd);
+            invokeInitMethod(beanName, bean, bd);
             
             return bean;
         } catch (Exception e) {
@@ -85,16 +80,16 @@ public class DefaultBeanFactory implements BeanFactory {
         }
     }
 
-    protected void invokeInitMethod(Object bean, BeanDefinition bd) {
-        try {
-            String initMethodName = bd.getInitMethodName();
-            if (initMethodName != null && !initMethodName.isEmpty()) {
+    private void invokeInitMethod(String beanName, Object bean, BeanDefinition bd) {
+        String initMethodName = bd.getInitMethodName();
+        if (initMethodName != null && !initMethodName.isEmpty()) {
+            try {
                 Method initMethod = bd.getBeanClass().getDeclaredMethod(initMethodName);
                 initMethod.setAccessible(true);
                 initMethod.invoke(bean);
+            } catch (Exception e) {
+                throw new RuntimeException("Error invoking init method on bean: " + beanName, e);
             }
-        } catch (Exception e) {
-            throw new RuntimeException("Error invoking init method", e);
         }
     }
     
@@ -328,6 +323,15 @@ public class DefaultBeanFactory implements BeanFactory {
             }
         } catch (Exception e) {
             throw new RuntimeException("Error invoking destroy method", e);
+        }
+    }
+
+    private void invokeAwareMethods(String beanName, Object bean) {
+        if (bean instanceof BeanNameAware) {
+            ((BeanNameAware) bean).setBeanName(beanName);
+        }
+        if (bean instanceof BeanFactoryAware) {
+            ((BeanFactoryAware) bean).setBeanFactory(this);
         }
     }
 } 

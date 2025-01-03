@@ -188,4 +188,25 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         // 如果没有合适的转换，返回原值
         return value;
     }
+    
+    public void close() {
+        System.out.println("Closing application context...");
+        // 遍历所有单例bean，调用销毁方法
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            if (bd.isSingleton()) {
+                Object bean = getBean(beanName);
+                String destroyMethodName = bd.getDestroyMethodName();
+                if (destroyMethodName != null && !destroyMethodName.isEmpty()) {
+                    try {
+                        Method destroyMethod = bean.getClass().getDeclaredMethod(destroyMethodName);
+                        destroyMethod.setAccessible(true);
+                        destroyMethod.invoke(bean);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Error invoking destroy method on bean: " + beanName, e);
+                    }
+                }
+            }
+        }
+    }
 } 
