@@ -149,15 +149,15 @@
 ### 任务7：延迟注入（lazy-init）
 **场景**：有些 Bean 不在容器启动时立即创建，而是在第一次被使用时才创建
 
-- [ ] **BeanDefinition 增加 `lazyInit` 标识**  
+- [x] **BeanDefinition 增加 `lazyInit` 标识**  
   - 若 `lazyInit = true`，则在容器启动时**不**创建该 Bean  
   - 只有当 `getBean(...)` 第一次调用时，再真正实例化
 
-- [ ] **在创建容器时**：  
+- [x] **在创建容器时**：  
   - 仍扫描/注册所有 Bean，但只实例化非 lazy-init 的 Bean  
   - 对于 lazy-init 的 Bean，往往需要**动态代理**或**记录**以延迟加载
 
-- [ ] **测试**  
+- [x] **测试**  
   - 在 XML/注解配置里标记一个 Bean 为 `lazy-init`  
   - 启动容器后，查看日志，确认它**尚未创建**  
   - 当第一次 `getBean("lazyBean")` 时，才看到日志 “Creating lazyBean ...”

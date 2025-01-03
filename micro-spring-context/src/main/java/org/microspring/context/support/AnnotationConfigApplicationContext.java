@@ -2,6 +2,7 @@ package org.microspring.context.support;
 
 import org.microspring.core.BeanDefinition;
 import org.microspring.beans.factory.annotation.Scope;
+import org.microspring.beans.factory.annotation.Lazy;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
 import org.microspring.stereotype.Component;
@@ -31,11 +32,11 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         // 1. 扫描组件
         scanPackages(basePackage);
         
-        // 2. 初始化所有单例bean
+        // 2. 只初始化非延迟加载的单例bean
         for (String beanName : beanFactory.getBeanDefinitionNames()) {
             BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
-            if (bd.isSingleton()) {
-                getBean(beanName);  // 触发bean的创建和初始化
+            if (bd.isSingleton() && !bd.isLazyInit()) {
+                getBean(beanName);
             }
         }
     }
@@ -145,7 +146,9 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             
             @Override
             public boolean isLazyInit() {
-                return this.lazyInit;
+                // 检查@Lazy注解
+                Lazy lazy = clazz.getAnnotation(Lazy.class);
+                return lazy != null;  // 如果有@Lazy注解，就返回true
             }
             
             @Override
