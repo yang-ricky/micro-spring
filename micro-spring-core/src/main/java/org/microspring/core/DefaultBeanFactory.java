@@ -58,26 +58,41 @@ public class DefaultBeanFactory implements BeanFactory {
     }
     
     protected Object createBean(String beanName, BeanDefinition bd) {
+        Object bean = null;
         try {
-            Object bean = createBeanInstance(bd);
+            // 1. 创建实例
+            bean = createBeanInstance(bd);
+            
+            // 2. 处理属性注入
             populateBean(bean, bd);
             
-            // 处理Aware接口回调
-            invokeAwareMethods(beanName, bean);
+            // 3. 处理Aware接口回调
+            if (bean instanceof BeanNameAware) {
+                ((BeanNameAware) bean).setBeanName(beanName);
+            }
+            if (bean instanceof BeanFactoryAware) {
+                ((BeanFactoryAware) bean).setBeanFactory(this);
+            }
+            
+            // 4. 调用初始化方法
+            invokeInitMethod(bean, bd);
             
             return bean;
         } catch (Exception e) {
-            throw new RuntimeException("Error creating bean: " + beanName, e);
+            throw new RuntimeException("Error creating bean with name '" + beanName + "'", e);
         }
     }
 
-    private void invokeAwareMethods(String beanName, Object bean) {
-        if (bean instanceof BeanNameAware) {
-            ((BeanNameAware) bean).setBeanName(beanName);
-        }
-        
-        if (bean instanceof BeanFactoryAware) {
-            ((BeanFactoryAware) bean).setBeanFactory(this);
+    protected void invokeInitMethod(Object bean, BeanDefinition bd) {
+        try {
+            String initMethodName = bd.getInitMethodName();
+            if (initMethodName != null && !initMethodName.isEmpty()) {
+                Method initMethod = bd.getBeanClass().getDeclaredMethod(initMethodName);
+                initMethod.setAccessible(true);
+                initMethod.invoke(bean);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error invoking init method", e);
         }
     }
     
