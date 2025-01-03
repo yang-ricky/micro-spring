@@ -1,6 +1,8 @@
 package org.microspring.core.io;
 
 import org.microspring.core.BeanDefinition;
+import org.microspring.core.BeanFactory;
+import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.DefaultBeanDefinition;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
@@ -17,64 +19,62 @@ import java.util.List;
 import java.util.Map;
 
 public class XmlBeanDefinitionReader {
+    private final DefaultBeanFactory beanFactory;
     
-    public List<BeanDefinitionHolder> loadBeanDefinitions(String xmlPath) {
-        List<BeanDefinitionHolder> holders = new ArrayList<>();
+    public XmlBeanDefinitionReader(DefaultBeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
+    }
+    
+    public void loadBeanDefinitions(String location) {
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream(location);
+        if (inputStream == null) {
+            throw new RuntimeException("Resource not found: " + location);
+        }
+        
         try {
-            InputStream is = getClass().getClassLoader().getResourceAsStream(xmlPath);
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder docBuilder = factory.newDocumentBuilder();
-            Document doc = docBuilder.parse(is);
+            Document doc = docBuilder.parse(inputStream);
             
-            NodeList beanNodes = doc.getElementsByTagName("bean");
-            for (int i = 0; i < beanNodes.getLength(); i++) {
-                Element beanElement = (Element) beanNodes.item(i);
+            Element root = doc.getDocumentElement();
+            NodeList nl = root.getElementsByTagName("bean");
+            
+            for (int i = 0; i < nl.getLength(); i++) {
+                Element ele = (Element) nl.item(i);
+                String id = ele.getAttribute("id");
+                String className = ele.getAttribute("class");
+                String lazyInit = ele.getAttribute("lazy-init");
                 
-                String id = beanElement.getAttribute("id");
-                String className = beanElement.getAttribute("class");
-                String scope = beanElement.getAttribute("scope");
-                String initMethod = beanElement.getAttribute("init-method");
+                Class<?> clz = Class.forName(className);
+                DefaultBeanDefinition bd = new DefaultBeanDefinition(clz);
                 
-                Class<?> beanClass = Class.forName(className);
-                DefaultBeanDefinition beanDefinition = new DefaultBeanDefinition(beanClass);
-                
-                if (!scope.isEmpty()) {
-                    beanDefinition.setScope(scope);
-                }
-                if (!initMethod.isEmpty()) {
-                    beanDefinition.setInitMethodName(initMethod);
+                if ("true".equals(lazyInit)) {
+                    bd.setLazyInit(true);
                 }
                 
-                // 解析constructor-arg
-                NodeList constructorArgs = beanElement.getElementsByTagName("constructor-arg");
-                for (int j = 0; j < constructorArgs.getLength(); j++) {
-                    Element arg = (Element) constructorArgs.item(j);
-                    String ref = arg.getAttribute("ref");
-                    String value = arg.getAttribute("value");
-                    String type = arg.getAttribute("type");
-                    
-                    beanDefinition.addConstructorArg(new ConstructorArg(
-                        ref,
-                        value.isEmpty() ? null : value,
-                        Class.forName(type)
-                    ));
+                // 处理构造器参数
+                NodeList constructorNodes = ele.getElementsByTagName("constructor-arg");
+                for (int j = 0; j < constructorNodes.getLength(); j++) {
+                    Element constructorEle = (Element) constructorNodes.item(j);
+                    String ref = constructorEle.getAttribute("ref");
+                    if (ref != null && !ref.isEmpty()) {
+                        ConstructorArg arg = new ConstructorArg(ref, null, Object.class);
+                        bd.addConstructorArg(arg);
+                    }
                 }
                 
-                // 解析property
-                NodeList properties = beanElement.getElementsByTagName("property");
-                for (int j = 0; j < properties.getLength(); j++) {
-                    Element prop = (Element) properties.item(j);
-                    handleProperty(prop, beanDefinition);
+                // 处理属性注入
+                NodeList propertyNodes = ele.getElementsByTagName("property");
+                for (int j = 0; j < propertyNodes.getLength(); j++) {
+                    Element propEle = (Element) propertyNodes.item(j);
+                    handleProperty(propEle, bd);
                 }
                 
-                System.out.println("[XmlBeanDefinitionReader] Loading bean definition: " + id);
-                holders.add(new BeanDefinitionHolder(id, beanDefinition));
+                beanFactory.registerBeanDefinition(id, bd);
             }
-            
         } catch (Exception e) {
-            throw new RuntimeException("Error loading XML file: " + xmlPath, e);
+            throw new RuntimeException("Error loading XML file: " + location, e);
         }
-        return holders;
     }
     
     private void handleProperty(Element propElement, BeanDefinition bd) {

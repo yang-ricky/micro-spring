@@ -57,6 +57,7 @@ public class DefaultBeanFactory implements BeanFactory {
     }
     
     protected Object createBean(String beanName, BeanDefinition bd) {
+        System.out.println("[BeanFactory] Creating bean: " + beanName);
         try {
             Object bean = createBeanInstance(bd);
             
@@ -141,64 +142,85 @@ public class DefaultBeanFactory implements BeanFactory {
     }
 
     public void loadBeanDefinitions(String xmlPath) {
-        XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader();
-        List<BeanDefinitionHolder> holders = reader.loadBeanDefinitions(xmlPath);
-        for (BeanDefinitionHolder holder : holders) {
-            registerBeanDefinition(holder.getBeanName(), holder.getBeanDefinition());
-        }
+        XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(this);
+        reader.loadBeanDefinitions(xmlPath);
     }
 
     protected Object createBeanInstance(BeanDefinition bd) throws Exception {
         Class<?> beanClass = bd.getBeanClass();
-        List<ConstructorArg> args = bd.getConstructorArgs();
         
-        // 1. 如果有构造器参数，使用带参数的构造器
-        if (!args.isEmpty()) {
-            Class<?>[] paramTypes = new Class<?>[args.size()];
-            Object[] paramValues = new Object[args.size()];
-            
-            for (int i = 0; i < args.size(); i++) {
-                ConstructorArg arg = args.get(i);
-                paramTypes[i] = arg.getType();
-                paramValues[i] = arg.isRef() ? getBean(arg.getRef()) : arg.getValue();
-            }
-            
-            Constructor<?> ctor = beanClass.getDeclaredConstructor(paramTypes);
-            return ctor.newInstance(paramValues);
+        // 1. 检查是否有构造器参数
+        if (!bd.getConstructorArgs().isEmpty()) {
+            return createBeanUsingConstructorArgs(bd);
         }
         
-        // 2. 查找带有@Autowired注解的构造器
-        for (Constructor<?> ctor : beanClass.getDeclaredConstructors()) {
-            if (ctor.isAnnotationPresent(Autowired.class)) {
-                Class<?>[] paramTypes = ctor.getParameterTypes();
-                Object[] paramValues = new Object[paramTypes.length];
-                
-                // 获取构造器参数的限定符
-                Annotation[][] paramAnnotations = ctor.getParameterAnnotations();
-                
-                for (int i = 0; i < paramTypes.length; i++) {
-                    String qualifier = null;
-                    for (Annotation annotation : paramAnnotations[i]) {
-                        if (annotation instanceof Qualifier) {
-                            qualifier = ((Qualifier) annotation).value();
-                            break;
-                        }
-                    }
-                    
-                    // 如果有@Qualifier注解，使用指定名称获取bean
-                    if (qualifier != null) {
-                        paramValues[i] = getBean(qualifier);
-                    } else {
-                        paramValues[i] = getBean(paramTypes[i]);
+        // 2. 检查是否有@Autowired注解的构造器
+        Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
+        Constructor<?> autowiredConstructor = null;
+        
+        for (Constructor<?> constructor : constructors) {
+            if (constructor.isAnnotationPresent(Autowired.class)) {
+                autowiredConstructor = constructor;
+                break;
+            }
+        }
+        
+        // 3. 如果有@Autowired注解的构造器，使用它
+        if (autowiredConstructor != null) {
+            autowiredConstructor.setAccessible(true);
+            Class<?>[] paramTypes = autowiredConstructor.getParameterTypes();
+            Object[] args = new Object[paramTypes.length];
+            
+            // 获取构造器参数的限定符
+            Annotation[][] paramAnnotations = autowiredConstructor.getParameterAnnotations();
+            
+            for (int i = 0; i < paramTypes.length; i++) {
+                String qualifier = null;
+                for (Annotation annotation : paramAnnotations[i]) {
+                    if (annotation instanceof Qualifier) {
+                        qualifier = ((Qualifier) annotation).value();
+                        break;
                     }
                 }
                 
-                return ctor.newInstance(paramValues);
+                // 根据类型和限定符获取依赖
+                args[i] = qualifier != null ? 
+                         getBean(qualifier) : 
+                         getBean(paramTypes[i]);
+            }
+            
+            return autowiredConstructor.newInstance(args);
+        }
+        
+        // 4. 如果没有特殊要求，使用默认构造器
+        try {
+            Constructor<?> defaultConstructor = beanClass.getDeclaredConstructor();
+            defaultConstructor.setAccessible(true);
+            return defaultConstructor.newInstance();
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("No suitable constructor found for " + beanClass.getName(), e);
+        }
+    }
+
+    private Object createBeanUsingConstructorArgs(BeanDefinition bd) throws Exception {
+        List<ConstructorArg> args = bd.getConstructorArgs();
+        Class<?>[] paramTypes = new Class<?>[args.size()];
+        Object[] paramValues = new Object[args.size()];
+        
+        for (int i = 0; i < args.size(); i++) {
+            ConstructorArg arg = args.get(i);
+            if (arg.isRef()) {
+                paramValues[i] = getBean(arg.getRef());
+                paramTypes[i] = paramValues[i].getClass();
+            } else {
+                paramValues[i] = arg.getValue();
+                paramTypes[i] = arg.getType();
             }
         }
         
-        // 3. 如果没有构造器参数和@Autowired注解，使用默认构造器
-        return beanClass.getDeclaredConstructor().newInstance();
+        Constructor<?> constructor = bd.getBeanClass().getDeclaredConstructor(paramTypes);
+        constructor.setAccessible(true);
+        return constructor.newInstance(paramValues);
     }
 
     public BeanDefinition getBeanDefinition(String name) {

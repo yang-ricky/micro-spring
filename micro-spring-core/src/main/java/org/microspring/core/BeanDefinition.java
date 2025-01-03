@@ -48,4 +48,16 @@ public interface BeanDefinition {
      * 添加属性值
      */
     void addPropertyValue(PropertyValue propertyValue);
+    
+    /**
+     * 是否延迟初始化
+     */
+    default boolean isLazyInit() {
+        return false;
+    }
+    
+    /**
+     * 设置是否延迟初始化
+     */
+    void setLazyInit(boolean lazyInit);
 } 

@@ -1,9 +1,13 @@
 package org.microspring.core.beans;
 
 public class ConstructorArg {
-    private final String ref;
-    private final Object value;
-    private final Class<?> type;
+    private String ref;
+    private Object value;
+    private Class<?> type;
+    
+    public ConstructorArg() {
+        // 无参构造函数
+    }
     
     public ConstructorArg(String ref, Object value, Class<?> type) {
         this.ref = ref;

@@ -18,6 +18,8 @@ public class MicroSpringCoreTest {
         
         // 创建一个简单的BeanDefinition
         BeanDefinition beanDefinition = new BeanDefinition() {
+            private boolean lazyInit = false;  // 添加lazyInit字段
+            
             @Override
             public Class<?> getBeanClass() {
                 return String.class;
@@ -56,6 +58,16 @@ public class MicroSpringCoreTest {
             @Override
             public void addPropertyValue(PropertyValue propertyValue) {
                 // 测试用例不需要实现
+            }
+            
+            @Override
+            public boolean isLazyInit() {
+                return this.lazyInit;
+            }
+            
+            @Override
+            public void setLazyInit(boolean lazyInit) {
+                this.lazyInit = lazyInit;
             }
         };
         

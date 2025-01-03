@@ -55,6 +55,8 @@ public class ClassPathBeanDefinitionScanner {
             Component component = clazz.getAnnotation(Component.class);
             if (component != null) {
                 BeanDefinition bd = new BeanDefinition() {
+                    private boolean lazyInit = false;
+                    
                     @Override
                     public Class<?> getBeanClass() {
                         return clazz;
@@ -125,6 +127,16 @@ public class ClassPathBeanDefinitionScanner {
 
                     @Override
                     public void addPropertyValue(PropertyValue propertyValue) {
+                    }
+
+                    @Override
+                    public boolean isLazyInit() {
+                        return this.lazyInit;
+                    }
+
+                    @Override
+                    public void setLazyInit(boolean lazyInit) {
+                        this.lazyInit = lazyInit;
                     }
                 };
                 beanDefinitions.add(bd);

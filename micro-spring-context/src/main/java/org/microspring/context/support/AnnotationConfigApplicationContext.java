@@ -4,9 +4,13 @@ import org.microspring.core.BeanDefinition;
 import org.microspring.beans.factory.annotation.Scope;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
+import org.microspring.stereotype.Component;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
+import java.net.URL;
+import java.util.Enumeration;
 
 public class AnnotationConfigApplicationContext extends AbstractApplicationContext {
     private final String basePackage;
@@ -36,37 +40,46 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         }
     }
 
-    private void scanPackages(String basePackage) {
+    protected void scanPackages(String... basePackages) {
         try {
-            String packagePath = basePackage.replace('.', '/');
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            
-            // 获取包对应的资源URL
-            java.net.URL resource = classLoader.getResource(packagePath);
-            if (resource == null) {
-                throw new RuntimeException("Package " + basePackage + " not found");
-            }
-            
-            java.io.File directory = new java.io.File(resource.getFile());
-            if (directory.exists()) {
-                // 扫描目录下的所有class文件
-                for (File file : directory.listFiles()) {
-                    if (file.getName().endsWith(".class")) {
-                        String className = basePackage + '.' + 
-                            file.getName().substring(0, file.getName().length() - 6);
-                        try {
-                            Class<?> clazz = Class.forName(className);
-                            if (clazz.isAnnotationPresent(org.microspring.stereotype.Component.class)) {
-                                registerBean(clazz);
-                            }
-                        } catch (ClassNotFoundException e) {
-                            // 忽略无法加载的类
-                        }
+            for (String basePackage : basePackages) {
+                String path = basePackage.replace('.', '/');
+                ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+                
+                // 获取类路径下的资源
+                Enumeration<URL> resources = classLoader.getResources(path);
+                while (resources.hasMoreElements()) {
+                    URL resource = resources.nextElement();
+                    File directory = new File(resource.getFile());
+                    if (directory.exists()) {
+                        scanDirectory(directory, basePackage);
                     }
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error scanning package: " + basePackage, e);
+            throw new RuntimeException("Error scanning packages", e);
+        }
+    }
+
+    private void scanDirectory(File directory, String basePackage) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    scanDirectory(file, basePackage + "." + file.getName());
+                } else if (file.getName().endsWith(".class")) {
+                    String className = basePackage + "." + 
+                        file.getName().substring(0, file.getName().length() - 6);
+                    try {
+                        Class<?> clazz = Class.forName(className);
+                        if (clazz.isAnnotationPresent(Component.class)) {
+                            registerBean(clazz);
+                        }
+                    } catch (ClassNotFoundException e) {
+                        // 忽略找不到的类
+                    }
+                }
+            }
         }
     }
 
@@ -89,6 +102,8 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         
         // 创建BeanDefinition
         BeanDefinition bd = new BeanDefinition() {
+            private boolean lazyInit = false;
+            
             @Override
             public Class<?> getBeanClass() {
                 return clazz;
@@ -126,6 +141,16 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             
             @Override
             public void addPropertyValue(PropertyValue propertyValue) {
+            }
+            
+            @Override
+            public boolean isLazyInit() {
+                return this.lazyInit;
+            }
+            
+            @Override
+            public void setLazyInit(boolean lazyInit) {
+                this.lazyInit = lazyInit;
             }
         };
         

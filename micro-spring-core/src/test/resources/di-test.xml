@@ -5,7 +5,7 @@
     </bean>
     
     <bean id="car" class="org.microspring.core.DependencyInjectionTest$Car">
-        <constructor-arg type="org.microspring.core.DependencyInjectionTest$Engine" ref="engine"/>
+        <constructor-arg ref="engine"/>
         <property name="brand" value="Tesla"/>
     </bean>
 </beans> 

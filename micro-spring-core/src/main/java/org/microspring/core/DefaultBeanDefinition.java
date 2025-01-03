@@ -11,6 +11,7 @@ public class DefaultBeanDefinition implements BeanDefinition {
     private String initMethodName;
     private final List<ConstructorArg> constructorArgs = new ArrayList<>();
     private final List<PropertyValue> propertyValues = new ArrayList<>();
+    private boolean lazyInit = false;  // 默认不延迟加载
 
     public DefaultBeanDefinition(Class<?> beanClass) {
         this.beanClass = beanClass;
@@ -62,5 +63,15 @@ public class DefaultBeanDefinition implements BeanDefinition {
     @Override
     public void addPropertyValue(PropertyValue propertyValue) {
         propertyValues.add(propertyValue);
+    }
+
+    @Override
+    public boolean isLazyInit() {
+        return this.lazyInit;
+    }
+
+    @Override
+    public void setLazyInit(boolean lazyInit) {
+        this.lazyInit = lazyInit;
     }
 } 
