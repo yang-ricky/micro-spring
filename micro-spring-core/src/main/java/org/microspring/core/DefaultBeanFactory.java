@@ -18,6 +18,7 @@ import org.microspring.core.beans.PropertyValue;
 import org.microspring.core.aware.BeanNameAware;
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
+import org.microspring.core.aware.BeanFactoryAware;
 
 public class DefaultBeanFactory implements BeanFactory {
     
@@ -57,22 +58,31 @@ public class DefaultBeanFactory implements BeanFactory {
     }
     
     protected Object createBean(String beanName, BeanDefinition bd) {
-        System.out.println("[BeanFactory] Creating bean: " + beanName);
         try {
             Object bean = createBeanInstance(bd);
-            
-            // 处理字段注入
             populateBean(bean, bd);
             
-            // 处理 Aware 回调
-            if (bean instanceof BeanNameAware) {
-                ((BeanNameAware) bean).setBeanName(beanName);
-            }
+            // 处理Aware接口回调
+            invokeAwareMethods(beanName, bean);
             
             return bean;
         } catch (Exception e) {
             throw new RuntimeException("Error creating bean: " + beanName, e);
         }
+    }
+
+    private void invokeAwareMethods(String beanName, Object bean) {
+        if (bean instanceof BeanNameAware) {
+            ((BeanNameAware) bean).setBeanName(beanName);
+        }
+        
+        if (bean instanceof BeanFactoryAware) {
+            ((BeanFactoryAware) bean).setBeanFactory(this);
+        }
+    }
+    
+    public Map<String, Object> getSingletonObjects() {
+        return this.singletonObjects;
     }
 
     protected void populateBean(Object bean, BeanDefinition bd) throws Exception {

@@ -56,6 +56,8 @@ public class ClassPathBeanDefinitionScanner {
             if (component != null) {
                 BeanDefinition bd = new BeanDefinition() {
                     private boolean lazyInit = false;
+                    private String initMethodName;
+                    private String destroyMethodName;
                     
                     @Override
                     public Class<?> getBeanClass() {
@@ -74,7 +76,22 @@ public class ClassPathBeanDefinitionScanner {
 
                     @Override
                     public String getInitMethodName() {
-                        return null;
+                        return this.initMethodName;
+                    }
+
+                    @Override
+                    public void setInitMethodName(String initMethodName) {
+                        this.initMethodName = initMethodName;
+                    }
+
+                    @Override
+                    public String getDestroyMethodName() {
+                        return this.destroyMethodName;
+                    }
+
+                    @Override
+                    public void setDestroyMethodName(String destroyMethodName) {
+                        this.destroyMethodName = destroyMethodName;
                     }
 
                     @Override

@@ -9,9 +9,10 @@ public class DefaultBeanDefinition implements BeanDefinition {
     private Class<?> beanClass;
     private String scope = "singleton";
     private String initMethodName;
+    private String destroyMethodName;
+    private boolean lazyInit = false;
     private final List<ConstructorArg> constructorArgs = new ArrayList<>();
     private final List<PropertyValue> propertyValues = new ArrayList<>();
-    private boolean lazyInit = false;  // 默认不延迟加载
 
     public DefaultBeanDefinition(Class<?> beanClass) {
         this.beanClass = beanClass;
@@ -41,28 +42,39 @@ public class DefaultBeanDefinition implements BeanDefinition {
         return this.initMethodName;
     }
 
+    @Override
     public void setInitMethodName(String initMethodName) {
         this.initMethodName = initMethodName;
     }
 
     @Override
+    public String getDestroyMethodName() {
+        return this.destroyMethodName;
+    }
+
+    @Override
+    public void setDestroyMethodName(String destroyMethodName) {
+        this.destroyMethodName = destroyMethodName;
+    }
+
+    @Override
     public List<ConstructorArg> getConstructorArgs() {
-        return constructorArgs;
+        return this.constructorArgs;
     }
 
     @Override
     public List<PropertyValue> getPropertyValues() {
-        return propertyValues;
+        return this.propertyValues;
     }
 
     @Override
     public void addConstructorArg(ConstructorArg arg) {
-        constructorArgs.add(arg);
+        this.constructorArgs.add(arg);
     }
 
     @Override
     public void addPropertyValue(PropertyValue propertyValue) {
-        propertyValues.add(propertyValue);
+        this.propertyValues.add(propertyValue);
     }
 
     @Override

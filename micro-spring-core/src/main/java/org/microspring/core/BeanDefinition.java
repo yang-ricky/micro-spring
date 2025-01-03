@@ -28,6 +28,7 @@ public interface BeanDefinition {
      * 获取初始化方法名
      */
     String getInitMethodName();
+    void setInitMethodName(String initMethodName);
     
     /**
      * 获取构造器参数
@@ -52,12 +53,20 @@ public interface BeanDefinition {
     /**
      * 是否延迟初始化
      */
-    default boolean isLazyInit() {
-        return false;
-    }
+    boolean isLazyInit();
     
     /**
      * 设置是否延迟初始化
      */
     void setLazyInit(boolean lazyInit);
+    
+    /**
+     * 获取销毁方法名
+     */
+    String getDestroyMethodName();
+    
+    /**
+     * 设置销毁方法名
+     */
+    void setDestroyMethodName(String destroyMethodName);
 } 

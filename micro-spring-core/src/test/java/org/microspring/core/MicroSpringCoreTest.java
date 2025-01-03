@@ -18,7 +18,9 @@ public class MicroSpringCoreTest {
         
         // 创建一个简单的BeanDefinition
         BeanDefinition beanDefinition = new BeanDefinition() {
-            private boolean lazyInit = false;  // 添加lazyInit字段
+            private boolean lazyInit = false;
+            private String initMethodName;
+            private String destroyMethodName;
             
             @Override
             public Class<?> getBeanClass() {
@@ -37,7 +39,22 @@ public class MicroSpringCoreTest {
             
             @Override
             public String getInitMethodName() {
-                return null;
+                return this.initMethodName;
+            }
+            
+            @Override
+            public void setInitMethodName(String initMethodName) {
+                this.initMethodName = initMethodName;
+            }
+            
+            @Override
+            public String getDestroyMethodName() {
+                return this.destroyMethodName;
+            }
+            
+            @Override
+            public void setDestroyMethodName(String destroyMethodName) {
+                this.destroyMethodName = destroyMethodName;
             }
             
             @Override
