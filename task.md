@@ -221,15 +221,15 @@
 ### 任务10：条件装配（Conditional）与模块装配
 **场景**：只有在满足某些条件下，才装配特定 Bean 或模块
 
-- [ ] **定义 `@Conditional`** 注解  
+- [x] **定义 `@Conditional`** 注解  
   - 接收一个“条件判断类”参数，如 `MyCondition.class`  
   - `MyCondition` 实现一个 `matches(Context context)` 方法，用来判定是否装配
 
-- [ ] **在加载 BeanDefinition 时**  
+- [x] **在加载 BeanDefinition 时**  
   - 若某个类有 `@Conditional(WindowsCondition.class)`，则先判断 `WindowsCondition.matches(...)` 是否为 true  
   - true → 注册 BeanDefinition，false → 不注册
 
-- [ ] **模块装配**  
+- [x] **模块装配**  
   - 在 XML 或注解中，根据不同环境（dev / prod）加载不同数据库配置 Bean  
   - 也可根据 `System.getProperty("os.name")` 判断是 Windows / Linux
 
