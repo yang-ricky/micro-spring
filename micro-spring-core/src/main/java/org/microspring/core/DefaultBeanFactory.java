@@ -10,10 +10,12 @@ import java.util.HashMap;
 import java.util.Set;
 import java.lang.reflect.Field;
 import java.lang.annotation.Annotation;
+import java.util.HashSet;
 
 import org.microspring.core.io.XmlBeanDefinitionReader;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
+import org.microspring.core.exception.CircularDependencyException;
 import org.microspring.core.aware.BeanNameAware;
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
@@ -23,6 +25,10 @@ public class DefaultBeanFactory implements BeanFactory {
     
     private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>();
     private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>();
+    
+    private final Map<String, Object> earlySingletonObjects = new ConcurrentHashMap<>();
+    private final Map<String, ObjectFactory<?>> singletonFactories = new ConcurrentHashMap<>();
+    private final Set<String> singletonsCurrentlyInCreation = new HashSet<>();
     
     private boolean closed = false;
     
@@ -34,61 +40,172 @@ public class DefaultBeanFactory implements BeanFactory {
 
     @Override
     public Object getBean(String name) {
-        BeanDefinition beanDefinition = beanDefinitionMap.get(name);
-        if (beanDefinition == null) {
-            throw new RuntimeException("No bean named '" + name + "' is defined");
-        }
-        
-        if (beanDefinition.isSingleton()) {
-            Object singleton = singletonObjects.get(name);
-            if (singleton == null) {
-                singleton = createBean(name, beanDefinition);
-                singletonObjects.put(name, singleton);
-            }
-            return singleton;
-        }
-        
-        return createBean(name, beanDefinition);
+        return doGetBean(name, null);
     }
 
     @Override
     public <T> T getBean(String name, Class<T> requiredType) {
-        Object bean = getBean(name);
-        if (requiredType != null && !requiredType.isInstance(bean)) {
-            throw new RuntimeException("Bean named '" + name + "' is not of required type '" + requiredType.getName() + "'");
-        }
-        return (T) bean;
+        return doGetBean(name, requiredType);
     }
-    
-    protected Object createBean(String beanName, BeanDefinition bd) {
-        Object bean = null;
+
+    @SuppressWarnings("unchecked")
+    protected <T> T doGetBean(String name, Class<T> requiredType) {
         try {
-            bean = createBeanInstance(bd);
-            populateBean(bean, bd);
-            
-            // 在Aware方法之前应用BeanPostProcessor
-            bean = applyBeanPostProcessorsBeforeInitialization(bean, beanName);
+            // 1. 先尝试从缓存获取(1级、2级、3级)
+            Object bean = getSingleton(name, true);
             if (bean != null) {
-                invokeAwareMethods(beanName, bean);
-                
-                // 调用初始化方法
-                String initMethodName = bd.getInitMethodName();
-                if (initMethodName != null && !initMethodName.isEmpty()) {
-                    Method initMethod = bean.getClass().getDeclaredMethod(initMethodName);
-                    initMethod.setAccessible(true);
-                    initMethod.invoke(bean);
+                // 若 bean 已存在，则可进行类型检查
+                if (requiredType != null && !requiredType.isInstance(bean)) {
+                    throw new CircularDependencyException(
+                        "Bean named '" + name + "' is not of required type '" 
+                        + requiredType.getName() + "'");
                 }
-                
-                // 在初始化之后应用BeanPostProcessor
-                bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+                return (T) bean;
             }
-            return bean;
+
+            // 2. beanDefinition
+            BeanDefinition beanDefinition = getBeanDefinition(name);
+            if (beanDefinition == null) {
+                throw new CircularDependencyException("No bean named '" + name + "' is defined");
+            }
+
+            // 3. 创建Bean(单例或原型)
+            if (beanDefinition.isSingleton()) {
+                try {
+                    bean = createSingleton(name, () -> createBean(name, beanDefinition));
+                } catch (Exception e) {
+                    if (e instanceof CircularDependencyException) {
+                        throw (CircularDependencyException) e;
+                    }
+                    throw new CircularDependencyException(
+                        "Error creating singleton bean '" + name + "'", e);
+                }
+            } else {
+                try {
+                    bean = createBean(name, beanDefinition);
+                } catch (Exception e) {
+                    if (e instanceof CircularDependencyException) {
+                        throw (CircularDependencyException) e;
+                    }
+                    throw new CircularDependencyException("Error creating bean '" + name + "'", e);
+                }
+            }
+
+            if (requiredType != null && !requiredType.isInstance(bean)) {
+                throw new CircularDependencyException(
+                    "Bean named '" + name + "' is not of required type '" + requiredType.getName() + "'");
+            }
+            return (T) bean;
         } catch (Exception e) {
-            throw new RuntimeException("Error creating bean with name '" + beanName + "'", e);
+            if (e instanceof CircularDependencyException) {
+                throw (CircularDependencyException) e;
+            }
+            throw new CircularDependencyException("Error getting bean '" + name + "'", e);
         }
     }
 
-    private void invokeInitMethod(String beanName, Object bean, BeanDefinition bd) {
+    /**
+     * 核心：创建Bean的完整流程
+     */
+    protected Object createBean(String beanName, BeanDefinition bd) {
+        singletonsCurrentlyInCreation.add(beanName);
+        try {
+            // 1. 实例化原始对象
+            Object rawBean = createBeanInstance(bd);
+
+            // 2. 如果是单例 -> 提前放到三级缓存(存一个 ObjectFactory)
+            if (bd.isSingleton()) {
+                this.singletonFactories.put(beanName, () -> {
+                    // 通过 InstantiationAwareBeanPostProcessor 来获取"早期Bean引用" (可能是代理)
+                    return getEarlyBeanReference(beanName, bd, rawBean);
+                });
+            }
+
+            // 3. 填充属性 (依赖注入)
+            populateBean(rawBean, bd);
+
+            // 4. 初始化 (BPP before -> aware -> initMethod)
+            Object bean = initializeBean(beanName, rawBean, bd);
+
+            // 5. 如果已经创建了代理对象（从二级缓存中获取），则使用该代理对象
+            if (bd.isSingleton()) {
+                Object earlySingletonReference = this.earlySingletonObjects.get(beanName);
+                if (earlySingletonReference != null) {
+                    bean = earlySingletonReference;
+                }
+                // 放入一级缓存
+                this.singletonObjects.put(beanName, bean);
+                // 干掉三级和二级
+                this.singletonFactories.remove(beanName);
+                this.earlySingletonObjects.remove(beanName);
+            }
+
+            // 6. afterInitialization => 可能返回新代理
+            bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+
+            // 7. 如果 afterInit 又返回新的代理，则覆盖进一级缓存
+            if (bd.isSingleton()) {
+                this.singletonObjects.put(beanName, bean);
+            }
+
+            return bean;
+        } catch (Exception e) {
+            throw new RuntimeException("Error creating bean with name '" + beanName + "'", e);
+        } finally {
+            singletonsCurrentlyInCreation.remove(beanName);
+        }
+    }
+
+    protected Object initializeBean(String beanName, Object bean, BeanDefinition bd) {
+        // 1. BPP before
+        Object result = applyBeanPostProcessorsBeforeInitialization(bean, beanName);
+        if (result == null) {
+            return null;
+        }
+        bean = result;
+
+        // 2. aware + initMethod
+        invokeAwareMethods(beanName, bean);
+        invokeInitMethod(beanName, bean, bd);
+
+        // 不在这里放入 singletonObjects, 已移动到 createBean(...) 里
+
+        return bean;
+    }
+
+    /**
+     * 返回"早期Bean引用" - 如果有 InstantiationAwareBeanPostProcessor，就可能返回代理
+     */
+    protected Object getEarlyBeanReference(String beanName, BeanDefinition bd, Object bean) {
+        Object exposedObject = bean;
+        for (BeanPostProcessor bp : beanPostProcessors) {
+            if (bp instanceof InstantiationAwareBeanPostProcessor) {
+                exposedObject = ((InstantiationAwareBeanPostProcessor) bp)
+                    .getEarlyBeanReference(exposedObject, beanName);
+            }
+        }
+        return exposedObject;
+    }
+
+    protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+        Object bean = this.singletonObjects.get(beanName);
+        if (bean == null && isInCreation(beanName)) {
+            synchronized (this.singletonObjects) {
+                bean = this.earlySingletonObjects.get(beanName);
+                if (bean == null && allowEarlyReference) {
+                    ObjectFactory<?> factory = this.singletonFactories.get(beanName);
+                    if (factory != null) {
+                        bean = factory.getObject(); // => 可能是 代理
+                        this.earlySingletonObjects.put(beanName, bean);
+                        this.singletonFactories.remove(beanName);
+                    }
+                }
+            }
+        }
+        return bean;
+    }
+
+    protected void invokeInitMethod(String beanName, Object bean, BeanDefinition bd) {
         String initMethodName = bd.getInitMethodName();
         if (initMethodName != null && !initMethodName.isEmpty()) {
             try {
@@ -105,7 +222,26 @@ public class DefaultBeanFactory implements BeanFactory {
         return this.singletonObjects;
     }
 
+    public Map<String, Object> getEarlySingletonObjects() {
+        return this.earlySingletonObjects;
+    }
+
+    public Map<String, ObjectFactory<?>> getSingletonFactories() {
+        return this.singletonFactories;
+    }
+
     protected void populateBean(Object bean, BeanDefinition bd) throws Exception {
+        // 检查 prototype 作用域的循环依赖
+        if (!bd.isSingleton()) {
+            for (PropertyValue pv : bd.getPropertyValues()) {
+                if (pv.isRef() && isInCreation(pv.getRef())) {
+                    throw new CircularDependencyException(
+                        "Cannot resolve circular reference between prototype beans: " + 
+                        bd.getBeanClass().getSimpleName() + " and " + pv.getRef());
+                }
+            }
+        }
+
         // 1. 处理 PropertyValue 注入
         for (PropertyValue pv : bd.getPropertyValues()) {
             Field field = bean.getClass().getDeclaredField(pv.getName());
@@ -113,7 +249,16 @@ public class DefaultBeanFactory implements BeanFactory {
             
             Object value;
             if (pv.isRef()) {
-                value = getBean(pv.getRef());
+                String refName = pv.getRef();
+                try {
+                    value = doGetBean(refName, null);
+                } catch (Exception e) {
+                    if (e instanceof CircularDependencyException) {
+                        throw e;
+                    }
+                    throw new CircularDependencyException(
+                        "Error injecting reference '" + refName + "'", e);
+                }
             } else {
                 value = pv.getValue();
             }
@@ -131,13 +276,20 @@ public class DefaultBeanFactory implements BeanFactory {
                 Qualifier qualifier = field.getAnnotation(Qualifier.class);
                 Object value;
                 
-                if (qualifier != null) {
-                    value = getBean(qualifier.value());
-                } else {
-                    value = getBean(field.getType());
+                try {
+                    if (qualifier != null) {
+                        value = getBean(qualifier.value());
+                    } else {
+                        value = getBean(field.getType());
+                    }
+                    field.set(bean, value);
+                } catch (Exception e) {
+                    if (e instanceof CircularDependencyException) {
+                        throw e;
+                    }
+                    throw new CircularDependencyException(
+                        "Error autowiring field '" + field.getName() + "'", e);
                 }
-                
-                field.set(bean, value);
             }
         }
     }
@@ -179,56 +331,76 @@ public class DefaultBeanFactory implements BeanFactory {
     protected Object createBeanInstance(BeanDefinition bd) throws Exception {
         Class<?> beanClass = bd.getBeanClass();
         
-        // 1. 检查是否有构造器参数
+        // 如果有构造器参数
         if (!bd.getConstructorArgs().isEmpty()) {
-            return createBeanUsingConstructorArgs(bd);
-        }
-        
-        // 2. 检查是否有@Autowired注解的构造器
-        Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
-        Constructor<?> autowiredConstructor = null;
-        
-        for (Constructor<?> constructor : constructors) {
-            if (constructor.isAnnotationPresent(Autowired.class)) {
-                autowiredConstructor = constructor;
-                break;
+            // 检查构造器循环依赖
+            for (ConstructorArg arg : bd.getConstructorArgs()) {
+                if (arg.isRef() && isInCreation(arg.getRef())) {
+                    throw new CircularDependencyException(
+                        "Circular dependency detected through constructor argument: " + arg.getRef());
+                }
             }
-        }
-        
-        // 3. 如果有@Autowired注解的构造器，使用它
-        if (autowiredConstructor != null) {
-            autowiredConstructor.setAccessible(true);
-            Class<?>[] paramTypes = autowiredConstructor.getParameterTypes();
-            Object[] args = new Object[paramTypes.length];
             
-            // 获取构造器参数的限定符
-            Annotation[][] paramAnnotations = autowiredConstructor.getParameterAnnotations();
+            // 获取构造器参数
+            List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
+            Object[] args = new Object[constructorArgs.size()];
             
-            for (int i = 0; i < paramTypes.length; i++) {
-                String qualifier = null;
-                for (Annotation annotation : paramAnnotations[i]) {
-                    if (annotation instanceof Qualifier) {
-                        qualifier = ((Qualifier) annotation).value();
-                        break;
+            for (int i = 0; i < constructorArgs.size(); i++) {
+                ConstructorArg constructorArg = constructorArgs.get(i);
+                if (constructorArg.isRef()) {
+                    args[i] = getBean(constructorArg.getRef());
+                } else {
+                    args[i] = constructorArg.getValue();
+                }
+            }
+            
+            try {
+                // 查找匹配的构造器
+                Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
+                for (Constructor<?> constructor : constructors) {
+                    if (constructor.getParameterCount() == args.length) {
+                        try {
+                            constructor.setAccessible(true);
+                            return constructor.newInstance(args);
+                        } catch (Exception e) {
+                            // 如果参数类型不匹配，继续尝试下一个构造器
+                            continue;
+                        }
                     }
                 }
-                
-                // 根据类型和限定符获取依赖
-                args[i] = qualifier != null ? 
-                         getBean(qualifier) : 
-                         getBean(paramTypes[i]);
+                throw new CircularDependencyException(
+                    "No suitable constructor found for " + beanClass.getName());
+            } catch (SecurityException e) {
+                throw new CircularDependencyException(
+                    "Error creating instance of " + beanClass.getName(), e);
+            }
+        } else {
+            // XML 中没有配置构造器参数，但类可能有带参构造器
+            Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
+            if (constructors.length == 1) {
+                Constructor<?> constructor = constructors[0];
+                if (constructor.getParameterCount() > 0) {
+                    // 有参数的构造器
+                    constructor.setAccessible(true);
+                    Class<?>[] paramTypes = constructor.getParameterTypes();
+                    Object[] args = new Object[paramTypes.length];
+                    for (int i = 0; i < paramTypes.length; i++) {
+                        // 尝试获取依赖的 bean
+                        args[i] = getBean(paramTypes[i]);
+                    }
+                    return constructor.newInstance(args);
+                }
             }
             
-            return autowiredConstructor.newInstance(args);
-        }
-        
-        // 4. 如果没有特殊要求，使用默认构造器
-        try {
-            Constructor<?> defaultConstructor = beanClass.getDeclaredConstructor();
-            defaultConstructor.setAccessible(true);
-            return defaultConstructor.newInstance();
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException("No suitable constructor found for " + beanClass.getName(), e);
+            // 尝试使用无参构造器
+            try {
+                Constructor<?> constructor = beanClass.getDeclaredConstructor();
+                constructor.setAccessible(true);
+                return constructor.newInstance();
+            } catch (NoSuchMethodException e) {
+                throw new CircularDependencyException(
+                    "No default constructor found for " + beanClass.getName(), e);
+            }
         }
     }
 
@@ -346,7 +518,6 @@ public class DefaultBeanFactory implements BeanFactory {
     public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
         this.beanPostProcessors.add(beanPostProcessor);
     }
-
     private Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName) {
         Object result = existingBean;
         for (BeanPostProcessor processor : beanPostProcessors) {
@@ -369,5 +540,20 @@ public class DefaultBeanFactory implements BeanFactory {
             result = current;
         }
         return result;
+    }
+
+    protected boolean isInCreation(String beanName) {
+        return singletonsCurrentlyInCreation.contains(beanName);
+    }
+
+    protected Object createSingleton(String beanName, ObjectFactory<?> factory) {
+        synchronized (this.singletonObjects) {
+            if (!this.singletonObjects.containsKey(beanName)) {
+                Object singleton = factory.getObject();
+                this.singletonObjects.put(beanName, singleton);
+                return singleton;
+            }
+            return this.singletonObjects.get(beanName);
+        }
     }
 } 
