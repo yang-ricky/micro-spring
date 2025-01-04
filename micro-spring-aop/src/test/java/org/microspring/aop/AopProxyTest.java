@@ -6,6 +6,9 @@ import org.microspring.core.DefaultBeanDefinition;
 import org.microspring.aop.advice.LogAdvice;
 import org.microspring.aop.annotation.Loggable;
 import org.microspring.aop.support.LoggingBeanPostProcessor;
+
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import static org.junit.Assert.*;
 
 public class AopProxyTest {
@@ -41,55 +44,103 @@ public class AopProxyTest {
     
     @Test
     public void testAopProxy() {
-        DefaultBeanFactory beanFactory = new DefaultBeanFactory();
+        // 捕获控制台输出
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(outputStream));
         
-        // 注册LogAdvice
-        DefaultBeanDefinition logAdviceDef = new DefaultBeanDefinition(LogAdvice.class);
-        beanFactory.registerBeanDefinition("logAdvice", logAdviceDef);
-        
-        // 使用带参构造函数创建LoggingBeanPostProcessor
-        beanFactory.addBeanPostProcessor(new LoggingBeanPostProcessor(beanFactory));
-        
-        DefaultBeanDefinition bd = new DefaultBeanDefinition(TestService.class);
-        beanFactory.registerBeanDefinition("testService", bd);
-        
-        ITestService service = (ITestService) beanFactory.getBean("testService");
-        assertNotNull(service);
-        
-        // 测试正常方法调用
-        String result = service.doSomething();
-        assertEquals("Hello from TestService", result);
-        
-        // 测试异常情况
         try {
-            service.doWithException();
-            fail("Should throw exception");
-        } catch (Exception e) {
-            assertEquals("Test Exception", e.getMessage());
+            DefaultBeanFactory beanFactory = new DefaultBeanFactory();
+            
+            // 注册LogAdvice
+            DefaultBeanDefinition logAdviceDef = new DefaultBeanDefinition(LogAdvice.class);
+            beanFactory.registerBeanDefinition("logAdvice", logAdviceDef);
+            
+            beanFactory.addBeanPostProcessor(new LoggingBeanPostProcessor(beanFactory));
+            
+            DefaultBeanDefinition bd = new DefaultBeanDefinition(TestService.class);
+            beanFactory.registerBeanDefinition("testService", bd);
+            
+            ITestService service = (ITestService) beanFactory.getBean("testService");
+            assertNotNull(service);
+            
+            // 测试正常方法调用
+            String result = service.doSomething();
+            assertEquals("Hello from TestService", result);
+            
+            String output = outputStream.toString();
+            assertTrue("Should log before method execution", 
+                output.contains("[LogAdvice] Before method: doSomething"));
+            assertTrue("Should log after method execution", 
+                output.contains("[LogAdvice] After method: doSomething"));
+            
+            outputStream.reset();
+            
+            // 测试异常情况
+            try {
+                service.doWithException();
+                fail("Should throw exception");
+            } catch (Exception e) {
+                assertEquals("Test Exception", e.getMessage());
+                output = outputStream.toString();
+                assertTrue("Should log before method execution", 
+                    output.contains("[LogAdvice] Before method: doWithException"));
+                assertTrue("Should log exception", 
+                    output.contains("[LogAdvice] Exception in method: doWithException"));
+            }
+        } finally {
+            System.setOut(originalOut);
         }
     }
     
     @Test
     public void testCglibProxy() {
-        DefaultBeanFactory beanFactory = new DefaultBeanFactory();
-        beanFactory.addBeanPostProcessor(new LoggingBeanPostProcessor(beanFactory));
+        // 捕获控制台输出
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(outputStream));
         
-        DefaultBeanDefinition bd = new DefaultBeanDefinition(NoInterfaceService.class);
-        beanFactory.registerBeanDefinition("noInterfaceService", bd);
-        
-        NoInterfaceService service = (NoInterfaceService) beanFactory.getBean("noInterfaceService");
-        assertNotNull(service);
-        
-        // 测试正常方法调用
-        String result = service.doSomething();
-        assertEquals("Hello from NoInterfaceService", result);
-        
-        // 测试异常情况
         try {
-            service.doWithException();
-            fail("Should throw exception");
-        } catch (Exception e) {
-            assertEquals("Test Exception from NoInterfaceService", e.getMessage());
+            DefaultBeanFactory beanFactory = new DefaultBeanFactory();
+            
+            // 注册LogAdvice
+            DefaultBeanDefinition logAdviceDef = new DefaultBeanDefinition(LogAdvice.class);
+            beanFactory.registerBeanDefinition("logAdvice", logAdviceDef);
+            
+            beanFactory.addBeanPostProcessor(new LoggingBeanPostProcessor(beanFactory));
+            
+            DefaultBeanDefinition bd = new DefaultBeanDefinition(NoInterfaceService.class);
+            beanFactory.registerBeanDefinition("noInterfaceService", bd);
+            
+            NoInterfaceService service = (NoInterfaceService) beanFactory.getBean("noInterfaceService");
+            assertNotNull(service);
+            
+            // 测试正常方法调用
+            String result = service.doSomething();
+            assertEquals("Hello from NoInterfaceService", result);
+            
+            String output = outputStream.toString();
+            assertTrue("Should log before method execution", 
+                output.contains("[LogAdvice(CGLIB)] Before method: doSomething"));
+            assertTrue("Should log after method execution", 
+                output.contains("[LogAdvice(CGLIB)] After method: doSomething"));
+            
+            outputStream.reset();
+            
+            // 测试异常情况
+            try {
+                service.doWithException();
+                fail("Should throw exception");
+            } catch (Exception e) {
+                assertEquals("Test Exception from NoInterfaceService", e.getMessage());
+                output = outputStream.toString();
+                assertTrue("Should log before method execution", 
+                    output.contains("[LogAdvice(CGLIB)] Before method: doWithException"));
+                assertTrue("Should log exception", 
+                    output.contains("[LogAdvice(CGLIB)] Exception in method: doWithException"));
+            }
+        } finally {
+            System.setOut(originalOut);
         }
     }
 } 
