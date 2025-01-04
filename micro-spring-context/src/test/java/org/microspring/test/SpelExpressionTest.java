@@ -4,6 +4,7 @@ import org.junit.Test;
 import org.microspring.beans.factory.annotation.Value;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
 import org.microspring.stereotype.Component;
+import org.microspring.beans.factory.annotation.Autowired;
 
 import static org.junit.Assert.*;
 
@@ -68,6 +69,39 @@ public class SpelExpressionTest {
         public String getNullValue() { return nullValue; }
     }
 
+    @Component
+    public static class NestedChild {
+        private double price = 100.0;
+        private String name = "child";
+        
+        public double getPrice() { return price; }
+        public String getName() { return name; }
+    }
+
+    @Component
+    public static class NestedParent {
+        private NestedChild child;
+        
+        @Autowired
+        public void setChild(NestedChild child) {
+            this.child = child;
+        }
+        
+        public NestedChild getChild() { return child; }
+    }
+
+    @Component
+    public static class BeanC {
+        @Value("#{nestedParent.child.price * 2}")
+        private Double nestedPrice;
+        
+        @Value("#{nestedParent.child.name + '_nested'}")
+        private String nestedName;
+        
+        public Double getNestedPrice() { return nestedPrice; }
+        public String getNestedName() { return nestedName; }
+    }
+
     @Test
     public void testBasicSpelExpression() {
         AnnotationConfigApplicationContext context = 
@@ -102,5 +136,16 @@ public class SpelExpressionTest {
         
         NullValueBean nullBean = context.getBean(NullValueBean.class);
         assertNull("Null value should be handled", nullBean.getNullValue());
+    }
+
+    @Test
+    public void testNestedPropertyAccess() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test");
+        
+        BeanC beanC = context.getBean(BeanC.class);
+        
+        assertEquals(200.0, beanC.getNestedPrice(), 0.001);
+        assertEquals("child_nested", beanC.getNestedName());
     }
 } 

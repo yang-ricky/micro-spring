@@ -266,12 +266,12 @@
 ### 任务12：属性注入（SpEL 表达式增强）
 **场景**：更复杂的表达式注入
 
-- [ ] **拓展 SpEL**  
+- [x] **拓展 SpEL**  
   - 支持 `#{beanB.someValue + 100}` 这类表达式  
   - 或 `@Value("#{'Hello ' + systemProperties['user.name']}")`  
   - 需要自己做一个小的解析器，或引入 Spring Expression Engine
 
-- [ ] **与循环依赖 / 条件装配配合**  
+- [x] **与循环依赖 / 条件装配配合**  
   - 复杂表达式可能依赖其他 Bean 的属性  
   - 如果依赖的 Bean 还没初始化，可能就会出现先后顺序的问题
 
