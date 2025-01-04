@@ -1,10 +1,21 @@
 package org.microspring.context.support;
 
+import org.microspring.core.BeanFactory;
+import org.microspring.core.spel.SpelExpressionResolver;
+
 public interface ValueResolver {
     Object resolveValue(String expression);
 }
 
 class DefaultValueResolver implements ValueResolver {
+    private final BeanFactory beanFactory;
+    private final SpelExpressionResolver spelResolver;
+
+    public DefaultValueResolver(BeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
+        this.spelResolver = new SpelExpressionResolver();
+    }
+
     @Override
     public Object resolveValue(String expression) {
         if (expression == null) {
@@ -22,21 +33,11 @@ class DefaultValueResolver implements ValueResolver {
             return value != null ? value : defaultValue;
         }
         
-        // 处理 #{expression} 格式
+        // 处理 #{expression} 格式 - 使用SpelExpressionResolver
         if (expression.startsWith("#{") && expression.endsWith("}")) {
-            String math = expression.substring(2, expression.length() - 1).trim();
-            return evaluateExpression(math);
+            return spelResolver.parseExpression(expression, beanFactory);
         }
         
-        return expression;
-    }
-    
-    private Object evaluateExpression(String expression) {
-        // 简单的数学表达式计算
-        String[] parts = expression.split("\\+");
-        if (parts.length == 2) {
-            return Integer.parseInt(parts[0].trim()) + Integer.parseInt(parts[1].trim());
-        }
         return expression;
     }
 } 

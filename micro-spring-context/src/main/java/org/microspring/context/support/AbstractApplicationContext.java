@@ -14,12 +14,12 @@ import java.lang.reflect.Method;
 import java.lang.annotation.Annotation;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {
-    protected DefaultBeanFactory beanFactory;
-    protected ValueResolver valueResolver;
+    protected final DefaultBeanFactory beanFactory;
+    protected final ValueResolver valueResolver;
     
     public AbstractApplicationContext() {
         this.beanFactory = new DefaultBeanFactory();
-        this.valueResolver = new DefaultValueResolver();
+        this.valueResolver = new DefaultValueResolver(beanFactory);
     }
     
     @Override
