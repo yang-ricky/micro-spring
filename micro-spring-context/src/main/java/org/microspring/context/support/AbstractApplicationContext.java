@@ -23,18 +23,10 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     }
     
     @Override
-    public Object getBean(String name) {
-        Object bean = beanFactory.getBean(name);
-        injectDependencies(bean);
-        return bean;
-    }
+    public abstract String getApplicationName();
     
     @Override
-    public <T> T getBean(String name, Class<T> requiredType) {
-        T bean = beanFactory.getBean(name, requiredType);
-        injectDependencies(bean);
-        return bean;
-    }
+    public abstract void refresh();
     
     @Override
     public long getStartupDate() {
@@ -47,7 +39,7 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     }
     
     protected void scanPackages(String... basePackages) {
-        ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner();
+        ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(beanFactory);
         for (String basePackage : basePackages) {
             List<BeanDefinition> beanDefinitions = scanner.scan(basePackage);
             for (BeanDefinition bd : beanDefinitions) {
@@ -63,6 +55,20 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             shortClassName = shortClassName.substring(shortClassName.lastIndexOf('$') + 1);
         }
         return Character.toLowerCase(shortClassName.charAt(0)) + shortClassName.substring(1);
+    }
+    
+    @Override
+    public Object getBean(String name) {
+        Object bean = beanFactory.getBean(name);
+        injectDependencies(bean);
+        return bean;
+    }
+    
+    @Override
+    public <T> T getBean(String name, Class<T> requiredType) {
+        T bean = beanFactory.getBean(name, requiredType);
+        injectDependencies(bean);
+        return bean;
     }
     
     @Override

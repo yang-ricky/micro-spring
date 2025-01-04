@@ -3,9 +3,23 @@ package org.microspring.context;
 import org.microspring.core.BeanFactory;
 
 public interface ApplicationContext extends BeanFactory {
-    void refresh();
+    /**
+     * 获取应用程序名称
+     */
     String getApplicationName();
+    
+    /**
+     * 获取启动时间
+     */
     long getStartupDate();
-    boolean containsBean(String name);
-    <T> T getBean(Class<T> requiredType);
+    
+    /**
+     * 刷新容器
+     */
+    void refresh();
+    
+    /**
+     * 关闭容器
+     */
+    void close();
 }

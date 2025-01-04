@@ -3,9 +3,14 @@ package org.microspring.core.io;
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
 import org.microspring.core.BeanDefinition;
+import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
 import org.microspring.stereotype.Component;
+import org.microspring.core.annotation.Conditional;
+import org.microspring.core.condition.Condition;
+import org.microspring.core.condition.ConditionContext;
+import org.microspring.core.condition.DefaultConditionContext;
 
 import java.io.File;
 import java.net.URL;
@@ -18,6 +23,13 @@ import java.lang.annotation.Annotation;
 
 
 public class ClassPathBeanDefinitionScanner {
+    private final DefaultBeanFactory beanFactory;
+    private final ConditionContext conditionContext;
+    
+    public ClassPathBeanDefinitionScanner(DefaultBeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
+        this.conditionContext = new DefaultConditionContext(beanFactory);
+    }
     
     public List<BeanDefinition> scan(String basePackage) {
         List<BeanDefinition> beanDefinitions = new ArrayList<>();
@@ -54,6 +66,23 @@ public class ClassPathBeanDefinitionScanner {
             // 检查是否有Component注解
             Component component = clazz.getAnnotation(Component.class);
             if (component != null) {
+                // 检查条件注解
+                Conditional conditional = clazz.getAnnotation(Conditional.class);
+                if (conditional != null) {
+                    for (Class<? extends Condition> conditionClass : conditional.value()) {
+                        try {
+                            Condition condition = conditionClass.getDeclaredConstructor().newInstance();
+                            if (!condition.matches(conditionContext)) {
+                                System.out.println("[INFO] Bean " + clazz.getSimpleName() + 
+                                    " is skipped due to condition: " + conditionClass.getSimpleName());
+                                return;
+                            }
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to evaluate condition", e);
+                        }
+                    }
+                }
+                
                 BeanDefinition bd = new BeanDefinition() {
                     private boolean lazyInit = false;
                     private String initMethodName;
@@ -157,6 +186,7 @@ public class ClassPathBeanDefinitionScanner {
                     }
                 };
                 beanDefinitions.add(bd);
+                System.out.println("[INFO] Bean " + clazz.getSimpleName() + " is loaded");
             }
             
             // 处理内部类
