@@ -27,6 +27,8 @@ public class DefaultBeanFactory implements BeanFactory {
     
     private boolean closed = false;
     
+    private final List<BeanPostProcessor> beanPostProcessors = new ArrayList<>();
+    
     public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition) {
         this.beanDefinitionMap.put(beanName, beanDefinition);
     }
@@ -62,18 +64,25 @@ public class DefaultBeanFactory implements BeanFactory {
     protected Object createBean(String beanName, BeanDefinition bd) {
         Object bean = null;
         try {
-            // 1. 创建实例
             bean = createBeanInstance(bd);
-            
-            // 2. 处理属性注入
             populateBean(bean, bd);
             
-            // 3. 处理Aware接口回调
-            invokeAwareMethods(beanName, bean);
-            
-            // 4. 调用初始化方法
-            invokeInitMethod(beanName, bean, bd);
-            
+            // 在Aware方法之前应用BeanPostProcessor
+            bean = applyBeanPostProcessorsBeforeInitialization(bean, beanName);
+            if (bean != null) {
+                invokeAwareMethods(beanName, bean);
+                
+                // 调用初始化方法
+                String initMethodName = bd.getInitMethodName();
+                if (initMethodName != null && !initMethodName.isEmpty()) {
+                    Method initMethod = bean.getClass().getDeclaredMethod(initMethodName);
+                    initMethod.setAccessible(true);
+                    initMethod.invoke(bean);
+                }
+                
+                // 在初始化之后应用BeanPostProcessor
+                bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+            }
             return bean;
         } catch (Exception e) {
             throw new RuntimeException("Error creating bean with name '" + beanName + "'", e);
@@ -333,5 +342,33 @@ public class DefaultBeanFactory implements BeanFactory {
         if (bean instanceof BeanFactoryAware) {
             ((BeanFactoryAware) bean).setBeanFactory(this);
         }
+    }
+
+    public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
+        this.beanPostProcessors.add(beanPostProcessor);
+    }
+
+    private Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName) {
+        Object result = existingBean;
+        for (BeanPostProcessor processor : beanPostProcessors) {
+            Object current = processor.postProcessBeforeInitialization(result, beanName);
+            if (current == null) {
+                return null;
+            }
+            result = current;
+        }
+        return result;
+    }
+
+    private Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName) {
+        Object result = existingBean;
+        for (BeanPostProcessor processor : beanPostProcessors) {
+            Object current = processor.postProcessAfterInitialization(result, beanName);
+            if (current == null) {
+                return null;
+            }
+            result = current;
+        }
+        return result;
     }
 } 
