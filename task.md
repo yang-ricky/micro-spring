@@ -285,9 +285,9 @@
 ### 任务13：增强异常体系与容错处理
 **场景**：捕获更多错误，提供友好提示
 
-- [ ] **自定义异常**：`BeanCreationException`, `NoSuchBeanDefinitionException`, `CircularDependencyException` 等  
-- [ ] **在创建、注入、销毁各阶段** 捕获异常并包装成自定义异常  
-- [ ] **日志与提示**：打印清晰的“错误上下文”，如当前 Bean 名称、依赖栈等
+- [x] **自定义异常**：`BeanCreationException`, `NoSuchBeanDefinitionException`, `CircularDependencyException` 等  
+- [x] **在创建、注入、销毁各阶段** 捕获异常并包装成自定义异常  
+- [x] **日志与提示**：打印清晰的“错误上下文”，如当前 Bean 名称、依赖栈等
 
 **产出要求**：
 1. 当 Bean 类不存在或构造器参数不匹配时，抛 `BeanCreationException`  

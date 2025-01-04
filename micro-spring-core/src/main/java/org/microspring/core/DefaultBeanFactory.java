@@ -20,6 +20,8 @@ import org.microspring.core.aware.BeanNameAware;
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
 import org.microspring.core.aware.BeanFactoryAware;
+import org.microspring.core.exception.BeanCreationException;
+import org.microspring.core.exception.NoSuchBeanDefinitionException;
 
 public class DefaultBeanFactory implements BeanFactory {
     
@@ -56,9 +58,9 @@ public class DefaultBeanFactory implements BeanFactory {
             if (bean != null) {
                 // 若 bean 已存在，则可进行类型检查
                 if (requiredType != null && !requiredType.isInstance(bean)) {
-                    throw new CircularDependencyException(
-                        "Bean named '" + name + "' is not of required type '" 
-                        + requiredType.getName() + "'");
+                    System.err.println("[BeanCreationException] Bean [" + name + "] is not of required type " + requiredType.getName());
+                    throw new BeanCreationException(name, 
+                        "Bean is not of required type " + requiredType.getName());
                 }
                 return (T) bean;
             }
@@ -66,41 +68,33 @@ public class DefaultBeanFactory implements BeanFactory {
             // 2. beanDefinition
             BeanDefinition beanDefinition = getBeanDefinition(name);
             if (beanDefinition == null) {
-                throw new CircularDependencyException("No bean named '" + name + "' is defined");
+                System.err.println("[NoSuchBeanDefinitionException] No bean named '" + name + "' is defined");
+                throw new NoSuchBeanDefinitionException(name);
             }
 
             // 3. 创建Bean(单例或原型)
             if (beanDefinition.isSingleton()) {
-                try {
-                    bean = createSingleton(name, () -> createBean(name, beanDefinition));
-                } catch (Exception e) {
-                    if (e instanceof CircularDependencyException) {
-                        throw (CircularDependencyException) e;
-                    }
-                    throw new CircularDependencyException(
-                        "Error creating singleton bean '" + name + "'", e);
-                }
+                bean = createSingleton(name, () -> createBean(name, beanDefinition));
             } else {
-                try {
-                    bean = createBean(name, beanDefinition);
-                } catch (Exception e) {
-                    if (e instanceof CircularDependencyException) {
-                        throw (CircularDependencyException) e;
-                    }
-                    throw new CircularDependencyException("Error creating bean '" + name + "'", e);
-                }
+                bean = createBean(name, beanDefinition);
             }
 
+            // 4. 类型检查
             if (requiredType != null && !requiredType.isInstance(bean)) {
-                throw new CircularDependencyException(
-                    "Bean named '" + name + "' is not of required type '" + requiredType.getName() + "'");
+                System.err.println("[BeanCreationException] Bean [" + name + "] is not of required type " + requiredType.getName());
+                throw new BeanCreationException(name, 
+                    "Bean is not of required type " + requiredType.getName());
             }
             return (T) bean;
+        } catch (CircularDependencyException e) {
+            // 循环依赖异常直接抛出，不包装
+            throw e;
         } catch (Exception e) {
-            if (e instanceof CircularDependencyException) {
-                throw (CircularDependencyException) e;
+            if (!(e instanceof BeanCreationException || e instanceof NoSuchBeanDefinitionException)) {
+                System.err.println("[BeanCreationException] Failed to get bean [" + name + "]");
+                throw new BeanCreationException(name, "Failed to get bean", e);
             }
-            throw new CircularDependencyException("Error getting bean '" + name + "'", e);
+            throw e;
         }
     }
 
@@ -116,7 +110,6 @@ public class DefaultBeanFactory implements BeanFactory {
             // 2. 如果是单例 -> 提前放到三级缓存(存一个 ObjectFactory)
             if (bd.isSingleton()) {
                 this.singletonFactories.put(beanName, () -> {
-                    // 通过 InstantiationAwareBeanPostProcessor 来获取"早期Bean引用" (可能是代理)
                     return getEarlyBeanReference(beanName, bd, rawBean);
                 });
             }
@@ -149,8 +142,14 @@ public class DefaultBeanFactory implements BeanFactory {
             }
 
             return bean;
+        } catch (BeanCreationException e) {
+            // BeanCreationException 直接抛出，不再包装
+            throw e;
+        } catch (CircularDependencyException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Error creating bean with name '" + beanName + "'", e);
+            System.err.println("[BeanCreationException] Failed to create bean [" + beanName + "]");
+            throw new BeanCreationException(beanName, "Creation failed", e);
         } finally {
             singletonsCurrentlyInCreation.remove(beanName);
         }
@@ -212,8 +211,14 @@ public class DefaultBeanFactory implements BeanFactory {
                 Method initMethod = bd.getBeanClass().getDeclaredMethod(initMethodName);
                 initMethod.setAccessible(true);
                 initMethod.invoke(bean);
+            } catch (NoSuchMethodException e) {
+                System.err.println("[BeanCreationException] Init method [" + initMethodName + "] not found for bean [" + beanName + "]");
+                throw new BeanCreationException(beanName, 
+                    "Init method [" + initMethodName + "] not found");
             } catch (Exception e) {
-                throw new RuntimeException("Error invoking init method on bean: " + beanName, e);
+                System.err.println("[BeanCreationException] Failed to invoke init method for bean [" + beanName + "]");
+                throw new BeanCreationException(beanName, 
+                    "Failed to invoke init method [" + initMethodName + "]", e);
             }
         }
     }
@@ -235,6 +240,7 @@ public class DefaultBeanFactory implements BeanFactory {
         if (!bd.isSingleton()) {
             for (PropertyValue pv : bd.getPropertyValues()) {
                 if (pv.isRef() && isInCreation(pv.getRef())) {
+                    System.err.println("[CircularDependencyException] Cannot resolve circular reference between prototype beans");
                     throw new CircularDependencyException(
                         "Cannot resolve circular reference between prototype beans: " + 
                         bd.getBeanClass().getSimpleName() + " and " + pv.getRef());
@@ -336,6 +342,7 @@ public class DefaultBeanFactory implements BeanFactory {
             // 检查构造器循环依赖
             for (ConstructorArg arg : bd.getConstructorArgs()) {
                 if (arg.isRef() && isInCreation(arg.getRef())) {
+                    System.err.println("[CircularDependencyException] Circular dependency detected through constructor argument: " + arg.getRef());
                     throw new CircularDependencyException(
                         "Circular dependency detected through constructor argument: " + arg.getRef());
                 }
@@ -485,8 +492,12 @@ public class DefaultBeanFactory implements BeanFactory {
             
             try {
                 invokeDestroyMethod(bean, bd);
+            } catch (BeanCreationException e) {
+                // BeanCreationException 直接抛出，不再包装
+                throw e;
             } catch (Exception e) {
-                throw new RuntimeException("Error destroying bean '" + beanName + "'", e);
+                System.err.println("[BeanCreationException] Failed to destroy bean [" + beanName + "]");
+                throw new BeanCreationException(beanName, "Failed to destroy bean", e);
             }
         }
         
@@ -494,15 +505,21 @@ public class DefaultBeanFactory implements BeanFactory {
     }
     
     protected void invokeDestroyMethod(Object bean, BeanDefinition bd) {
-        try {
-            String destroyMethodName = bd.getDestroyMethodName();
-            if (destroyMethodName != null && !destroyMethodName.isEmpty()) {
+        String destroyMethodName = bd.getDestroyMethodName();
+        if (destroyMethodName != null && !destroyMethodName.isEmpty()) {
+            try {
                 Method destroyMethod = bd.getBeanClass().getDeclaredMethod(destroyMethodName);
                 destroyMethod.setAccessible(true);
                 destroyMethod.invoke(bean);
+            } catch (NoSuchMethodException e) {
+                System.err.println("[BeanCreationException] Destroy method [" + destroyMethodName + "] not found");
+                throw new BeanCreationException(bd.getBeanClass().getSimpleName(), 
+                    "Destroy method [" + destroyMethodName + "] not found");
+            } catch (Exception e) {
+                System.err.println("[BeanCreationException] Failed to invoke destroy method");
+                throw new BeanCreationException(bd.getBeanClass().getSimpleName(), 
+                    "Failed to invoke destroy method [" + destroyMethodName + "]", e);
             }
-        } catch (Exception e) {
-            throw new RuntimeException("Error invoking destroy method", e);
         }
     }
 
