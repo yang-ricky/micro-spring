@@ -186,19 +186,19 @@
 ### 任务9：BeanPostProcessor 扩展 + AOP（动态代理）
 **场景**：为所有 Bean 的创建过程插入钩子；并尝试 AOP 原理
 
-- [ ] **`BeanPostProcessor`**  
+- [x] **`BeanPostProcessor`**  
   - 在容器创建完一个 Bean（但在 initMethod 之前），依次调用已注册的 `BeanPostProcessor`  
   - 可以在 `postProcessBeforeInitialization` 做属性检查；在 `postProcessAfterInitialization` 返回代理对象
 
-- [ ] **原生动态代理 (JDK)**  
+- [x] **原生动态代理 (JDK)**  
   - 当某个 Bean 需要 AOP（比如带 `@Aspect` 或配置文件指示），用 JDK Proxy 包装  
   - 仅支持接口代理，若 Bean 没有实现接口，则无能为力
 
-- [ ] **CGLIB**  
+- [x] **CGLIB**  
   - 当需要代理无接口的类，就尝试使用 CGLIB  
   - 需在 `pom.xml` 中添加 CGLIB 依赖
 
-- [ ] **日志切面 / 性能切面**  
+- [x] **日志切面 / 性能切面**  
   - 写一个简单的 `LogAdvice`，在方法执行前后打印日志  
   - 测试调用 Bean 的方法，看是否有拦截效果
 

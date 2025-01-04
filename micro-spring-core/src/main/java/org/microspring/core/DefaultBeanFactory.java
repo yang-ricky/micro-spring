@@ -11,7 +11,6 @@ import java.util.Set;
 import java.lang.reflect.Field;
 import java.lang.annotation.Annotation;
 
-import org.microspring.core.io.BeanDefinitionHolder;
 import org.microspring.core.io.XmlBeanDefinitionReader;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
