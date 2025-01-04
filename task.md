@@ -171,10 +171,10 @@
 ### 任务8：增强 Bean 生命周期管理（包括回调销毁、回调注入）
 **场景**：丰富初始化和销毁过程；学习回调注入细节
 
-- [ ] **BeanDefinition** 增加 `initMethodName`, `destroyMethodName`  
-- [ ] **在容器刷新完毕**：对所有**非 lazy** 的单例 Bean 调用 init 方法  
-- [ ] **在容器关闭时**：对所有单例 Bean 调用 destroy 方法  
-- [ ] **回调注入**：如实现 `BeanNameAware`, `BeanFactoryAware`，在创建 Bean 时回调
+- [x] **BeanDefinition** 增加 `initMethodName`, `destroyMethodName`  
+- [x] **在容器刷新完毕**：对所有**非 lazy** 的单例 Bean 调用 init 方法  
+- [x] **在容器关闭时**：对所有单例 Bean 调用 destroy 方法  
+- [x] **回调注入**：如实现 `BeanNameAware`, `BeanFactoryAware`，在创建 Bean 时回调
 
 **产出要求**：
 1. 测试添加一个 `DemoBean`，其中 `initMethodName="initMe"`，`destroyMethodName="cleanup"`  
