@@ -63,10 +63,16 @@ public class ClassPathBeanDefinitionScanner {
                 return;
             }
             
-            // 检查是否有Component注解
             Component component = clazz.getAnnotation(Component.class);
             if (component != null) {
+                // 获取bean名称
+                String beanName = component.value();
+                if (beanName.isEmpty()) {
+                    beanName = toLowerFirstCase(clazz.getSimpleName());
+                }
+                
                 // 检查条件注解
+                boolean shouldRegister = true;
                 Conditional conditional = clazz.getAnnotation(Conditional.class);
                 if (conditional != null) {
                     for (Class<? extends Condition> conditionClass : conditional.value()) {
@@ -75,118 +81,88 @@ public class ClassPathBeanDefinitionScanner {
                             if (!condition.matches(conditionContext)) {
                                 System.out.println("[INFO] Bean " + clazz.getSimpleName() + 
                                     " is skipped due to condition: " + conditionClass.getSimpleName());
-                                return;
+                                shouldRegister = false;
+                                break;
                             }
                         } catch (Exception e) {
                             throw new RuntimeException("Failed to evaluate condition", e);
                         }
                     }
                 }
-                
-                BeanDefinition bd = new BeanDefinition() {
-                    private boolean lazyInit = false;
-                    private String initMethodName;
-                    private String destroyMethodName;
-                    
-                    @Override
-                    public Class<?> getBeanClass() {
-                        return clazz;
-                    }
 
-                    @Override
-                    public String getScope() {
-                        return "singleton";
-                    }
-
-                    @Override
-                    public boolean isSingleton() {
-                        return true;
-                    }
-
-                    @Override
-                    public String getInitMethodName() {
-                        return this.initMethodName;
-                    }
-
-                    @Override
-                    public void setInitMethodName(String initMethodName) {
-                        this.initMethodName = initMethodName;
-                    }
-
-                    @Override
-                    public String getDestroyMethodName() {
-                        return this.destroyMethodName;
-                    }
-
-                    @Override
-                    public void setDestroyMethodName(String destroyMethodName) {
-                        this.destroyMethodName = destroyMethodName;
-                    }
-
-                    @Override
-                    public List<ConstructorArg> getConstructorArgs() {
-                        List<ConstructorArg> args = new ArrayList<>();
-                        // 查找带有@Autowired注解的构造器
-                        for (Constructor<?> ctor : clazz.getDeclaredConstructors()) {
-                            if (ctor.isAnnotationPresent(Autowired.class)) {
-                                // 获取构造器的参数
-                                Class<?>[] paramTypes = ctor.getParameterTypes();
-                                Annotation[][] paramAnnotations = ctor.getParameterAnnotations();
-                                
-                                for (int i = 0; i < paramTypes.length; i++) {
-                                    String qualifier = null;
-                                    // 检查参数上的@Qualifier注解
-                                    for (Annotation ann : paramAnnotations[i]) {
-                                        if (ann instanceof Qualifier) {
-                                            qualifier = ((Qualifier) ann).value();
-                                            break;
-                                        }
-                                    }
-                                    // 创建构造器参数
-                                    String ref = qualifier != null ? qualifier : "";
-                                    ConstructorArg arg = new ConstructorArg(ref, null, paramTypes[i]);
-                                    args.add(arg);
-                                }
-                                break; // 只处理第一个带@Autowired的构造器
-                            }
+                if (shouldRegister) {
+                    BeanDefinition bd = new BeanDefinition() {
+                        private boolean lazyInit = false;
+                        private String initMethodName;
+                        private String destroyMethodName;
+                        
+                        @Override
+                        public Class<?> getBeanClass() {
+                            return clazz;
                         }
-                        return args;
-                    }
 
-                    @Override
-                    public List<PropertyValue> getPropertyValues() {
-                        List<PropertyValue> propertyValues = new ArrayList<>();
-                        // 处理@Autowired注解的字段
-                        for (Field field : clazz.getDeclaredFields()) {
-                            Autowired autowired = field.getAnnotation(Autowired.class);
-                            if (autowired != null) {
-                                PropertyValue pv = new PropertyValue(field.getName(), null, field.getType());
-                                propertyValues.add(pv);
-                            }
+                        @Override
+                        public String getScope() {
+                            return "singleton";
                         }
-                        return propertyValues;
-                    }
 
-                    @Override
-                    public void addConstructorArg(ConstructorArg arg) {
-                    }
+                        @Override
+                        public boolean isSingleton() {
+                            return true;
+                        }
 
-                    @Override
-                    public void addPropertyValue(PropertyValue propertyValue) {
-                    }
+                        @Override
+                        public String getInitMethodName() {
+                            return this.initMethodName;
+                        }
 
-                    @Override
-                    public boolean isLazyInit() {
-                        return this.lazyInit;
-                    }
+                        @Override
+                        public void setInitMethodName(String initMethodName) {
+                            this.initMethodName = initMethodName;
+                        }
 
-                    @Override
-                    public void setLazyInit(boolean lazyInit) {
-                        this.lazyInit = lazyInit;
-                    }
-                };
-                beanDefinitions.add(bd);
-                System.out.println("[INFO] Bean " + clazz.getSimpleName() + " is loaded");
+                        @Override
+                        public String getDestroyMethodName() {
+                            return this.destroyMethodName;
+                        }
+
+                        @Override
+                        public void setDestroyMethodName(String destroyMethodName) {
+                            this.destroyMethodName = destroyMethodName;
+                        }
+
+                        @Override
+                        public List<ConstructorArg> getConstructorArgs() {
+                            return new ArrayList<>();
+                        }
+
+                        @Override
+                        public List<PropertyValue> getPropertyValues() {
+                            return new ArrayList<>();
+                        }
+
+                        @Override
+                        public void addConstructorArg(ConstructorArg arg) {
+                        }
+
+                        @Override
+                        public void addPropertyValue(PropertyValue propertyValue) {
+                        }
+
+                        @Override
+                        public boolean isLazyInit() {
+                            return this.lazyInit;
+                        }
+
+                        @Override
+                        public void setLazyInit(boolean lazyInit) {
+                            this.lazyInit = lazyInit;
+                        }
+                    };
+                    beanDefinitions.add(bd);
+                    beanFactory.registerBeanDefinition(beanName, bd);
+                    System.out.println("[INFO] Bean " + clazz.getSimpleName() + " is loaded");
+                }
             }
             
             // 处理内部类
@@ -198,5 +174,14 @@ public class ClassPathBeanDefinitionScanner {
         } catch (ClassNotFoundException e) {
             // 忽略无法加载的类
         }
+    }
+
+    private String toLowerFirstCase(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        char[] chars = str.toCharArray();
+        chars[0] = Character.toLowerCase(chars[0]);
+        return String.valueOf(chars);
     }
 } 
