@@ -11,11 +11,13 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class DispatcherServlet extends HttpServlet {
     
     private ApplicationContext applicationContext;
     private HandlerMapping handlerMapping;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     public DispatcherServlet(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -31,22 +33,20 @@ public class DispatcherServlet extends HttpServlet {
             throws ServletException, IOException {
         try {
             HandlerMethod handlerMethod = handlerMapping.getHandler(request);
-            
             if (handlerMethod == null) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
             
-            Object result = handlerMethod.getMethod().invoke(handlerMethod.getBean());
-            
-            // 检查是否需要 JSON 响应
-            if (isResponseBody(handlerMethod)) {
-                response.setContentType("application/json;charset=UTF-8");
-                String jsonResult = convertToJson(result);
-                response.getWriter().write(jsonResult);
-            } else {
-                response.setContentType("text/plain;charset=UTF-8");
-                response.getWriter().write(String.valueOf(result));
+            Object result = handlerMethod.invoke(request);
+            if (result != null) {
+                if (result instanceof String && !isResponseBody(handlerMethod)) {
+                    response.setContentType("text/plain;charset=UTF-8");
+                    response.getWriter().write((String) result);
+                } else {
+                    response.setContentType("application/json;charset=UTF-8");
+                    objectMapper.writeValue(response.getWriter(), result);
+                }
             }
         } catch (MethodNotAllowedException e) {
             response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
@@ -67,15 +67,10 @@ public class DispatcherServlet extends HttpServlet {
     }
     
     private String convertToJson(Object obj) {
-        // 这里可以使用 Jackson 或其他 JSON 库
-        // 为了简单演示，我们先用简单的方式
-        if (obj == null) {
-            return "null";
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            throw new RuntimeException("Error converting object to JSON", e);
         }
-        if (obj instanceof String) {
-            return "\"" + obj + "\"";
-        }
-        // TODO: 实现更完整的 JSON 转换
-        return obj.toString();
     }
 } 

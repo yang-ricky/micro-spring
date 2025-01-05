@@ -24,25 +24,17 @@ public class TestRestController {
     
     @RequestMapping("/users")
     public List<User> getUsers() {
-        List<User> users = Arrays.asList(
+        return Arrays.asList(
             new User("John", 25),
             new User("Jane", 24)
         );
-        // 手动构建 JSON 数组字符串
-        StringBuilder json = new StringBuilder("[");
-        for (int i = 0; i < users.size(); i++) {
-            if (i > 0) {
-                json.append(",");
-            }
-            json.append(users.get(i).toString());
-        }
-        json.append("]");
-        return new UserList(json.toString());
     }
     
     @DeleteMapping("/user/{id}")
-    public String deleteUser() {
-        return "{\"message\":\"User deleted successfully\"}";
+    public Map<String, String> deleteUser() {
+        Map<String, String> result = new HashMap<>();
+        result.put("message", "User deleted successfully");
+        return result;
     }
     
     @PatchMapping("/user/{id}")
@@ -50,12 +42,37 @@ public class TestRestController {
         return new User("Partially Updated User", 28);
     }
     
+    @PostMapping("/address")
+    public Map<String, String> save(@Valid @RequestBody AddressVO vo) {
+        Map<String, String> result = new HashMap<>();
+        result.put("message", "Address saved: " + vo.getStreet());
+        return result;
+    }
+    
     public static class User {
         private String name;
         private int age;
         
+        public User() {} // Jackson需要无参构造函数
+        
         public User(String name, int age) {
             this.name = name;
+            this.age = age;
+        }
+        
+        public String getName() {
+            return name;
+        }
+        
+        public void setName(String name) {
+            this.name = name;
+        }
+        
+        public int getAge() {
+            return age;
+        }
+        
+        public void setAge(int age) {
             this.age = age;
         }
         
@@ -76,6 +93,28 @@ public class TestRestController {
         @Override
         public String toString() {
             return jsonString;
+        }
+    }
+    
+    public static class AddressVO {
+        private String street;
+        private String city;
+        
+        // Getters and setters
+        public String getStreet() {
+            return street;
+        }
+        
+        public void setStreet(String street) {
+            this.street = street;
+        }
+        
+        public String getCity() {
+            return city;
+        }
+        
+        public void setCity(String city) {
+            this.city = city;
         }
     }
 } 

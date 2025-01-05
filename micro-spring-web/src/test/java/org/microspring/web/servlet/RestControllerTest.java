@@ -10,6 +10,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.BufferedReader;
+import java.io.StringReader;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -159,5 +161,28 @@ public class RestControllerTest {
 
         // Verify
         verify(response).sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+    }
+    
+    @Test
+    public void testRequestBody() throws Exception {
+        // Mock request
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getContextPath()).thenReturn("");
+        when(request.getRequestURI()).thenReturn("/api/address");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getContentType()).thenReturn("application/json");
+        
+        // Mock request body
+        String jsonBody = "{\"street\":\"123 Main St\",\"city\":\"Boston\"}";
+        BufferedReader reader = new BufferedReader(new StringReader(jsonBody));
+        when(request.getReader()).thenReturn(reader);
+
+        // Execute
+        servlet.service(request, response);
+        writer.flush();
+
+        // Verify
+        verify(response).setContentType("application/json;charset=UTF-8");
+        assertEquals("{\"message\":\"Address saved: 123 Main St\"}", stringWriter.toString());
     }
 } 

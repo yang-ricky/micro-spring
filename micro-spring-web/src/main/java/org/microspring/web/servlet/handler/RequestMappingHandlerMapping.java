@@ -114,22 +114,68 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
         
         for (Map.Entry<RequestMappingInfo, HandlerMethod> entry : handlerMethods.entrySet()) {
             RequestMappingInfo mappingInfo = entry.getKey();
-            if (mappingInfo.getPath().equals(lookupPath)) {
+            if (pathMatch(mappingInfo.getPath(), lookupPath)) {
                 matchedInfo = mappingInfo;
                 handlerMethod = entry.getValue();
                 // 如果方法也匹配，直接返回
-                if (mappingInfo.matches(lookupPath, method)) {
+                if (isMethodMatch(mappingInfo.methods, method)) {
                     return handlerMethod;
                 }
             }
         }
         
-        // 如果找到了路径但方法不匹配，返回 405 Method Not Allowed
+        // 如果找到了路径但方法不匹配，抛出 405 Method Not Allowed
         if (matchedInfo != null) {
             throw new MethodNotAllowedException(method, matchedInfo.getAllowedMethods());
         }
         
         return null;
+    }
+    
+    private boolean isMethodMatch(RequestMethod[] configuredMethods, String requestMethod) {
+        if (configuredMethods.length == 0) {
+            return true;  // 没有配置方法表示接受所有方法
+        }
+        for (RequestMethod method : configuredMethods) {
+            if (method.name().equals(requestMethod)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private boolean pathMatch(String pattern, String lookupPath) {
+        // 完全相等的情况
+        if (pattern.equals(lookupPath)) {
+            return true;
+        }
+        
+        // 将 URL 模板中的 {xxx} 转换为正则表达式
+        String[] patternParts = pattern.split("/");
+        String[] lookupParts = lookupPath.split("/");
+        
+        if (patternParts.length != lookupParts.length) {
+            return false;
+        }
+        
+        for (int i = 0; i < patternParts.length; i++) {
+            String patternPart = patternParts[i];
+            String lookupPart = lookupParts[i];
+            
+            if (patternPart.isEmpty() && lookupPart.isEmpty()) {
+                continue;
+            }
+            
+            if (patternPart.startsWith("{") && patternPart.endsWith("}")) {
+                continue;  // 路径参数部分，跳过比较
+            }
+            
+            if (!patternPart.equals(lookupPart)) {
+                return false;
+            }
+        }
+        
+        return true;
     }
     
     private static class RequestMappingInfo {
