@@ -129,12 +129,29 @@ public class RestControllerTest {
     }
     
     @Test
+    public void testPatchMapping() throws Exception {
+        // Mock request
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getContextPath()).thenReturn("");
+        when(request.getRequestURI()).thenReturn("/api/user/1");
+        when(request.getMethod()).thenReturn("PATCH");
+
+        // Execute
+        servlet.service(request, response);
+        writer.flush();
+
+        // Verify
+        verify(response).setContentType("application/json;charset=UTF-8");
+        assertEquals("{\"name\":\"Partially Updated User\",\"age\":28}", stringWriter.toString());
+    }
+    
+    @Test
     public void testMethodNotAllowed() throws Exception {
         // Mock request with wrong HTTP method
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getContextPath()).thenReturn("");
         when(request.getRequestURI()).thenReturn("/api/user/1");
-        when(request.getMethod()).thenReturn("PATCH");  // 使用未支持的方法
+        when(request.getMethod()).thenReturn("OPTIONS");  // 使用未支持的方法
 
         // Execute
         servlet.service(request, response);

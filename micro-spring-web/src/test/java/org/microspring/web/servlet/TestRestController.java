@@ -45,6 +45,11 @@ public class TestRestController {
         return "{\"message\":\"User deleted successfully\"}";
     }
     
+    @PatchMapping("/user/{id}")
+    public User patchUser() {
+        return new User("Partially Updated User", 28);
+    }
+    
     public static class User {
         private String name;
         private int age;

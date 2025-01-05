@@ -13,6 +13,7 @@ import org.microspring.web.annotation.RequestMethod;
 import org.microspring.web.annotation.PostMapping;
 import org.microspring.web.annotation.PutMapping;
 import org.microspring.web.annotation.DeleteMapping;
+import org.microspring.web.annotation.PatchMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
@@ -62,10 +63,11 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
                 PostMapping postMapping = method.getAnnotation(PostMapping.class);
                 PutMapping putMapping = method.getAnnotation(PutMapping.class);
                 DeleteMapping deleteMapping = method.getAnnotation(DeleteMapping.class);
+                PatchMapping patchMapping = method.getAnnotation(PatchMapping.class);
                 
                 if (requestMapping != null || getMapping != null || 
                     postMapping != null || putMapping != null ||
-                    deleteMapping != null) {
+                    deleteMapping != null || patchMapping != null) {
                     
                     String methodUrl = "";
                     RequestMethod[] methods = {};
@@ -85,6 +87,9 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
                     } else if (deleteMapping != null) {
                         methodUrl = deleteMapping.value();
                         methods = new RequestMethod[]{RequestMethod.DELETE};
+                    } else if (patchMapping != null) {
+                        methodUrl = patchMapping.value();
+                        methods = new RequestMethod[]{RequestMethod.PATCH};
                     }
                     
                     String fullUrl = baseUrl + methodUrl;
