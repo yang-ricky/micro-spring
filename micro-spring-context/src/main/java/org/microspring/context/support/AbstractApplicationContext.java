@@ -22,6 +22,11 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         this.valueResolver = new DefaultValueResolver(beanFactory);
     }
     
+    public AbstractApplicationContext(DefaultBeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
+        this.valueResolver = new DefaultValueResolver(beanFactory);
+    }
+    
     @Override
     public abstract String getApplicationName();
     
@@ -214,5 +219,10 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                 }
             }
         }
+    }
+    
+    @Override
+    public String[] getBeanNamesForAnnotation(Class<? extends Annotation> annotationType) {
+        return beanFactory.getBeanNamesForAnnotation(annotationType);
     }
 } 

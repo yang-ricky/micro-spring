@@ -573,4 +573,16 @@ public class DefaultBeanFactory implements BeanFactory {
             return this.singletonObjects.get(beanName);
         }
     }
+
+    @Override
+    public String[] getBeanNamesForAnnotation(Class<? extends Annotation> annotationType) {
+        List<String> result = new ArrayList<>();
+        for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {
+            Class<?> beanClass = entry.getValue().getBeanClass();
+            if (beanClass.isAnnotationPresent(annotationType)) {
+                result.add(entry.getKey());
+            }
+        }
+        return result.toArray(new String[0]);
+    }
 } 

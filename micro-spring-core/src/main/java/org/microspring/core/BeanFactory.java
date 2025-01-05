@@ -1,5 +1,7 @@
 package org.microspring.core;
 
+import java.lang.annotation.Annotation;
+
 /**
  * Bean工厂的顶层接口
  */
@@ -33,4 +35,11 @@ public interface BeanFactory {
      * @return 如果包含返回true，否则返回false
      */
     boolean containsBean(String name);
+    
+    /**
+     * 获取带有指定注解的所有bean名称
+     * @param annotationType 注解类型
+     * @return bean名称数组
+     */
+    String[] getBeanNamesForAnnotation(Class<? extends Annotation> annotationType);
 } 
