@@ -13,6 +13,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+import org.microspring.web.annotation.RequestParam;
 
 public class HandlerMethod {
     private final Object bean;
@@ -49,6 +50,9 @@ public class HandlerMethod {
             } else if (parameter.isAnnotationPresent(PathVariable.class)) {
                 PathVariable pathVar = parameter.getAnnotation(PathVariable.class);
                 args[i] = resolvePathVariable(request, pathVar.value(), parameter.getType());
+            } else if (parameter.isAnnotationPresent(RequestParam.class)) {
+                RequestParam requestParam = parameter.getAnnotation(RequestParam.class);
+                args[i] = resolveRequestParam(request, requestParam, parameter.getType());
             }
         }
         
@@ -106,6 +110,43 @@ public class HandlerMethod {
         }
         
         return null;
+    }
+    
+    private Object resolveRequestParam(HttpServletRequest request, RequestParam annotation, 
+            Class<?> paramType) {
+        String paramName = annotation.value();
+        String paramValue = request.getParameter(paramName);
+        
+        if (paramValue == null) {
+            if (annotation.required() && annotation.defaultValue().equals(
+                "\n\t\t\n\t\t\n\ue000\ue001\ue002\n\t\t\t\t\n")) {
+                throw new IllegalArgumentException(
+                    String.format("Required parameter '%s' is not present", paramName));
+            }
+            if (!annotation.defaultValue().equals(
+                "\n\t\t\n\t\t\n\ue000\ue001\ue002\n\t\t\t\t\n")) {
+                paramValue = annotation.defaultValue();
+            }
+        }
+        
+        try {
+            if (paramType == String.class) {
+                return paramValue;
+            } else if (paramType == Integer.class || paramType == int.class) {
+                return Integer.parseInt(paramValue);
+            } else if (paramType == Long.class || paramType == long.class) {
+                return Long.parseLong(paramValue);
+            } else if (paramType == Boolean.class || paramType == boolean.class) {
+                return Boolean.parseBoolean(paramValue);
+            }
+            // 可以添加更多类型的转换
+            throw new IllegalArgumentException(
+                String.format("Unsupported parameter type: %s", paramType.getName()));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                String.format("Failed to convert parameter '%s' to type %s", 
+                paramName, paramType.getSimpleName()));
+        }
     }
     
     public Object invokeAndHandle(HttpServletRequest request, HttpServletResponse response, 

@@ -61,7 +61,13 @@ public class DispatcherServlet extends HttpServlet {
             }
         } catch (MethodNotAllowedException e) {
             response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) cause;
+            }
             throw new ServletException("Error invoking handler method", e);
         }
     }
