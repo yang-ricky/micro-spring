@@ -3,11 +3,15 @@ package org.microspring.web.method;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import org.microspring.web.annotation.RequestBody;
+import org.microspring.web.annotation.ResponseStatus;
 import org.microspring.web.annotation.PathVariable;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
 import org.microspring.web.annotation.ExceptionHandler;
+import javax.servlet.http.HttpServletResponse;
+import java.util.HashMap;
+import java.util.Map;
 
 public class HandlerMethod {
     private final Object bean;
@@ -103,19 +107,40 @@ public class HandlerMethod {
         return null;
     }
     
-    public Object invokeAndHandle(HttpServletRequest request) throws Exception {
+    public Object invokeAndHandle(HttpServletRequest request, HttpServletResponse response) throws Exception {
         try {
-            return invoke(request);
+            Object result = invoke(request);
+            // 检查方法上的 @ResponseStatus
+            if (method.isAnnotationPresent(ResponseStatus.class)) {
+                ResponseStatus status = method.getAnnotation(ResponseStatus.class);
+                response.setStatus(status.value());
+            }
+            return result;
         } catch (Exception e) {
-            // 获取实际的异常（如果是InvocationTargetException）
+            // 获取实际的异常
             Throwable ex = e instanceof java.lang.reflect.InvocationTargetException ? 
                 e.getCause() : e;
+                
+            // 检查异常类上的 @ResponseStatus
+            if (ex.getClass().isAnnotationPresent(ResponseStatus.class)) {
+                ResponseStatus status = ex.getClass().getAnnotation(ResponseStatus.class);
+                response.setStatus(status.value());
+                Map<String, String> errorResponse = new HashMap<>();
+                errorResponse.put("error", ex.getMessage());
+                return errorResponse;
+            }
                 
             // 查找异常处理方法
             Method exceptionHandler = findExceptionHandler(ex.getClass());
             if (exceptionHandler != null) {
                 exceptionHandler.setAccessible(true);
-                return exceptionHandler.invoke(bean, ex);
+                Object result = exceptionHandler.invoke(bean, ex);
+                // 检查异常处理器上的 @ResponseStatus
+                if (exceptionHandler.isAnnotationPresent(ResponseStatus.class)) {
+                    ResponseStatus status = exceptionHandler.getAnnotation(ResponseStatus.class);
+                    response.setStatus(status.value());
+                }
+                return result;
             }
             throw e;
         }

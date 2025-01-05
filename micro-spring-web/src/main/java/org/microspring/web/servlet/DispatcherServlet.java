@@ -38,7 +38,7 @@ public class DispatcherServlet extends HttpServlet {
                 return;
             }
             
-            Object result = handlerMethod.invokeAndHandle(request);
+            Object result = handlerMethod.invokeAndHandle(request, response);
             if (result != null) {
                 if (result instanceof String && !isResponseBody(handlerMethod)) {
                     response.setContentType("text/plain;charset=UTF-8");
