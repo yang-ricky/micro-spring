@@ -9,12 +9,20 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
+    <profiles>
+        <profile>
+            <id>with-example</id>
+            <modules>
+                <module>micro-spring-example</module>
+            </modules>
+        </profile>
+    </profiles>
+
     <modules>
         <module>micro-spring-core</module>
         <module>micro-spring-context</module>
         <module>micro-spring-aop</module>
         <module>micro-spring-web</module>
-        <module>micro-spring-example</module>
     </modules>
 
     <properties>
