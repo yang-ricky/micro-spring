@@ -3,6 +3,7 @@ package org.microspring.web.servlet.handler;
 import org.microspring.context.ApplicationContext;
 import org.microspring.web.annotation.Controller;
 import org.microspring.web.annotation.RequestMapping;
+import org.microspring.web.annotation.RestController;
 import org.microspring.web.context.WebApplicationContext;
 import org.microspring.web.method.HandlerMethod;
 import org.microspring.web.servlet.HandlerMapping;
@@ -25,9 +26,16 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
     }
     
     private void initHandlerMethods(WebApplicationContext applicationContext) {
-        String[] beanNames = applicationContext.getBeanNamesForAnnotation(Controller.class);
+        // 获取所有带有 @Controller 或 @RestController 注解的 bean
+        String[] controllerBeans = applicationContext.getBeanNamesForAnnotation(Controller.class);
+        String[] restControllerBeans = applicationContext.getBeanNamesForAnnotation(RestController.class);
         
-        for (String beanName : beanNames) {
+        // 合并两个数组
+        String[] allBeans = new String[controllerBeans.length + restControllerBeans.length];
+        System.arraycopy(controllerBeans, 0, allBeans, 0, controllerBeans.length);
+        System.arraycopy(restControllerBeans, 0, allBeans, controllerBeans.length, restControllerBeans.length);
+        
+        for (String beanName : allBeans) {
             Object controller = applicationContext.getBean(beanName);
             Class<?> controllerClass = controller.getClass();
             
