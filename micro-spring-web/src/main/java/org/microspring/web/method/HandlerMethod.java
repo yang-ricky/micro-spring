@@ -3,6 +3,7 @@ package org.microspring.web.method;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import org.microspring.web.annotation.RequestBody;
+import org.microspring.web.annotation.PathVariable;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
@@ -39,8 +40,10 @@ public class HandlerMethod {
             Parameter parameter = parameters[i];
             if (parameter.isAnnotationPresent(RequestBody.class)) {
                 args[i] = resolveRequestBody(request, parameter.getType());
+            } else if (parameter.isAnnotationPresent(PathVariable.class)) {
+                PathVariable pathVar = parameter.getAnnotation(PathVariable.class);
+                args[i] = resolvePathVariable(request, pathVar.value(), parameter.getType());
             }
-            // 可以在这里添加其他参数解析逻辑
         }
         
         return args;
@@ -55,5 +58,47 @@ public class HandlerMethod {
             }
         }
         return objectMapper.readValue(body.toString(), paramType);
+    }
+    
+    private Object resolvePathVariable(HttpServletRequest request, String name, Class<?> paramType) {
+        String uri = request.getRequestURI();
+        String[] pathSegments = uri.split("/");
+        
+        // 获取方法上的路径
+        String methodPath = "";
+        if (method.isAnnotationPresent(org.microspring.web.annotation.GetMapping.class)) {
+            methodPath = method.getAnnotation(org.microspring.web.annotation.GetMapping.class).value();
+        }
+        
+        String[] patternSegments = methodPath.split("/");
+        
+        // 从后往前匹配，因为变量通常在路径末尾
+        int uriIndex = pathSegments.length - 1;
+        int patternIndex = patternSegments.length - 1;
+        
+        while (uriIndex >= 0 && patternIndex >= 0) {
+            if (patternSegments[patternIndex].startsWith("{") && 
+                patternSegments[patternIndex].endsWith("}")) {
+                String varName = patternSegments[patternIndex].substring(1, patternSegments[patternIndex].length() - 1);
+                if (varName.equals(name)) {
+                    String value = pathSegments[uriIndex];
+                    try {
+                        if (paramType == Long.class) {
+                            return Long.parseLong(value);
+                        }
+                        return value;
+                    } catch (NumberFormatException e) {
+                        throw new IllegalArgumentException(
+                            String.format("Failed to convert path variable '%s' to type %s", 
+                            name, paramType.getSimpleName())
+                        );
+                    }
+                }
+            }
+            uriIndex--;
+            patternIndex--;
+        }
+        
+        return null;
     }
 } 

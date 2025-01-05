@@ -48,6 +48,8 @@ public class DispatcherServlet extends HttpServlet {
                     objectMapper.writeValue(response.getWriter(), result);
                 }
             }
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         } catch (MethodNotAllowedException e) {
             response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
         } catch (Exception e) {

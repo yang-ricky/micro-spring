@@ -185,4 +185,56 @@ public class RestControllerTest {
         verify(response).setContentType("application/json;charset=UTF-8");
         assertEquals("{\"message\":\"Address saved: 123 Main St\"}", stringWriter.toString());
     }
+    
+    @Test
+    public void testPathVariable() throws Exception {
+        // Mock request
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getContextPath()).thenReturn("");
+        when(request.getRequestURI()).thenReturn("/api/users/123");
+        when(request.getMethod()).thenReturn("GET");
+
+        // Execute
+        servlet.service(request, response);
+        writer.flush();
+
+        // Verify
+        verify(response).setContentType("application/json;charset=UTF-8");
+        assertEquals("{\"id\":123,\"name\":\"User 123\"}", stringWriter.toString());
+    }
+    
+    @Test
+    public void testMultiplePathVariables() throws Exception {
+        // Mock request
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getContextPath()).thenReturn("");
+        when(request.getRequestURI()).thenReturn("/api/users/123/posts/456");
+        when(request.getMethod()).thenReturn("GET");
+
+        // Execute
+        servlet.service(request, response);
+        writer.flush();
+
+        // Verify
+        verify(response).setContentType("application/json;charset=UTF-8");
+        assertEquals("{\"userId\":123,\"postId\":456,\"title\":\"Post 456 by User 123\"}", 
+                    stringWriter.toString());
+    }
+
+    @Test
+    public void testInvalidPathVariable() throws Exception {
+        // Mock request with invalid path variable
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getContextPath()).thenReturn("");
+        when(request.getRequestURI()).thenReturn("/api/users/abc"); // 非数字ID
+        when(request.getMethod()).thenReturn("GET");
+
+        // Execute
+        servlet.service(request, response);
+        writer.flush();
+
+        // Verify
+        verify(response).sendError(HttpServletResponse.SC_BAD_REQUEST, 
+            "Failed to convert path variable 'id' to type Long");
+    }
 } 

@@ -2,6 +2,7 @@ package org.microspring.web.servlet;
 
 import org.microspring.web.annotation.*;
 import java.util.*;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 @RestController
 @RequestMapping("/api")
@@ -49,72 +50,79 @@ public class TestRestController {
         return result;
     }
     
+    @GetMapping("/users/{id}")
+    public SimpleUser getUserById(@PathVariable("id") Long id) {
+        System.out.println("PathVariable id: " + id);
+        return new SimpleUser(id, "User " + id);
+    }
+    
+    @GetMapping("/users/{userId}/posts/{postId}")
+    public Post getUserPost(
+        @PathVariable("userId") Long userId,
+        @PathVariable("postId") Long postId
+    ) {
+        System.out.println("PathVariable userId: " + userId + ", postId: " + postId);
+        return new Post(userId, postId, "Post " + postId + " by User " + userId);
+    }
+    
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class User {
         private String name;
         private int age;
-        
-        public User() {} // Jackson需要无参构造函数
         
         public User(String name, int age) {
             this.name = name;
             this.age = age;
         }
         
-        public String getName() {
-            return name;
-        }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public int getAge() { return age; }
+        public void setAge(int age) { this.age = age; }
+    }
+    
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class SimpleUser {
+        private Long id;
+        private String name;
         
-        public void setName(String name) {
+        public SimpleUser(Long id, String name) {
+            this.id = id;
             this.name = name;
         }
         
-        public int getAge() {
-            return age;
-        }
-        
-        public void setAge(int age) {
-            this.age = age;
-        }
-        
-        @Override
-        public String toString() {
-            return "{\"name\":\"" + name + "\",\"age\":" + age + "}";
-        }
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
     }
     
-    // 包装类，用于正确输出 JSON 数组
-    public static class UserList extends ArrayList<User> {
-        private final String jsonString;
+    public static class Post {
+        private Long userId;
+        private Long postId;
+        private String title;
         
-        public UserList(String jsonString) {
-            this.jsonString = jsonString;
+        public Post(Long userId, Long postId, String title) {
+            this.userId = userId;
+            this.postId = postId;
+            this.title = title;
         }
         
-        @Override
-        public String toString() {
-            return jsonString;
-        }
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+        public Long getPostId() { return postId; }
+        public void setPostId(Long postId) { this.postId = postId; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
     }
     
     public static class AddressVO {
         private String street;
         private String city;
         
-        // Getters and setters
-        public String getStreet() {
-            return street;
-        }
-        
-        public void setStreet(String street) {
-            this.street = street;
-        }
-        
-        public String getCity() {
-            return city;
-        }
-        
-        public void setCity(String city) {
-            this.city = city;
-        }
+        public String getStreet() { return street; }
+        public void setStreet(String street) { this.street = street; }
+        public String getCity() { return city; }
+        public void setCity(String city) { this.city = city; }
     }
 } 
