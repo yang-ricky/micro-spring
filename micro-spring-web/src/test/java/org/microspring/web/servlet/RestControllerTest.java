@@ -234,7 +234,10 @@ public class RestControllerTest {
         writer.flush();
 
         // Verify
-        verify(response).sendError(HttpServletResponse.SC_BAD_REQUEST, 
-            "Failed to convert path variable 'id' to type Long");
+        verify(response).setContentType("application/json;charset=UTF-8");
+        assertEquals(
+            "{\"error\":\"Failed to convert path variable 'id' to type Long\",\"type\":\"validation_error\"}", 
+            stringWriter.toString()
+        );
     }
 } 

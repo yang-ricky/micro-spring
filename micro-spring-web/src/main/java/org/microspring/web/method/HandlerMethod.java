@@ -7,6 +7,7 @@ import org.microspring.web.annotation.PathVariable;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
+import org.microspring.web.annotation.ExceptionHandler;
 
 public class HandlerMethod {
     private final Object bean;
@@ -100,5 +101,46 @@ public class HandlerMethod {
         }
         
         return null;
+    }
+    
+    public Object invokeAndHandle(HttpServletRequest request) throws Exception {
+        try {
+            return invoke(request);
+        } catch (Exception e) {
+            // 获取实际的异常（如果是InvocationTargetException）
+            Throwable ex = e instanceof java.lang.reflect.InvocationTargetException ? 
+                e.getCause() : e;
+                
+            // 查找异常处理方法
+            Method exceptionHandler = findExceptionHandler(ex.getClass());
+            if (exceptionHandler != null) {
+                exceptionHandler.setAccessible(true);
+                return exceptionHandler.invoke(bean, ex);
+            }
+            throw e;
+        }
+    }
+    
+    private Method findExceptionHandler(Class<?> exceptionClass) {
+        // 查找所有带有@ExceptionHandler注解的方法
+        Method bestMatch = null;
+        Class<?> bestType = null;
+        
+        for (Method method : bean.getClass().getDeclaredMethods()) {
+            if (method.isAnnotationPresent(ExceptionHandler.class)) {
+                ExceptionHandler annotation = method.getAnnotation(ExceptionHandler.class);
+                for (Class<? extends Throwable> exceptionType : annotation.value()) {
+                    if (exceptionType.isAssignableFrom(exceptionClass)) {
+                        // 找到匹配的处理器，检查是否是最具体的匹配
+                        if (bestType == null || bestType.isAssignableFrom(exceptionType)) {
+                            bestMatch = method;
+                            bestType = exceptionType;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return bestMatch;
     }
 } 

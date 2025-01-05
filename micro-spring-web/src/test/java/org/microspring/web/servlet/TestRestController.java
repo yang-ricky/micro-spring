@@ -125,4 +125,12 @@ public class TestRestController {
         public String getCity() { return city; }
         public void setCity(String city) { this.city = city; }
     }
+    
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Map<String, String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("error", ex.getMessage());
+        response.put("type", "validation_error");
+        return response;
+    }
 } 

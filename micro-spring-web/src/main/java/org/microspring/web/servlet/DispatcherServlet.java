@@ -38,7 +38,7 @@ public class DispatcherServlet extends HttpServlet {
                 return;
             }
             
-            Object result = handlerMethod.invoke(request);
+            Object result = handlerMethod.invokeAndHandle(request);
             if (result != null) {
                 if (result instanceof String && !isResponseBody(handlerMethod)) {
                     response.setContentType("text/plain;charset=UTF-8");
@@ -48,8 +48,6 @@ public class DispatcherServlet extends HttpServlet {
                     objectMapper.writeValue(response.getWriter(), result);
                 }
             }
-        } catch (IllegalArgumentException e) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         } catch (MethodNotAllowedException e) {
             response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
         } catch (Exception e) {
