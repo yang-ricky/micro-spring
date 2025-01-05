@@ -12,6 +12,7 @@ import org.microspring.web.annotation.ExceptionHandler;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 public class HandlerMethod {
     private final Object bean;
@@ -107,7 +108,8 @@ public class HandlerMethod {
         return null;
     }
     
-    public Object invokeAndHandle(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public Object invokeAndHandle(HttpServletRequest request, HttpServletResponse response, 
+            List<Object> globalExceptionHandlers) throws Exception {
         try {
             Object result = invoke(request);
             // 检查方法上的 @ResponseStatus
@@ -121,7 +123,7 @@ public class HandlerMethod {
             Throwable ex = e instanceof java.lang.reflect.InvocationTargetException ? 
                 e.getCause() : e;
                 
-            // 检查异常类上的 @ResponseStatus
+            // 首先检查异常类上的 @ResponseStatus
             if (ex.getClass().isAnnotationPresent(ResponseStatus.class)) {
                 ResponseStatus status = ex.getClass().getAnnotation(ResponseStatus.class);
                 response.setStatus(status.value());
@@ -129,34 +131,57 @@ public class HandlerMethod {
                 errorResponse.put("error", ex.getMessage());
                 return errorResponse;
             }
-                
-            // 查找异常处理方法
-            Method exceptionHandler = findExceptionHandler(ex.getClass());
-            if (exceptionHandler != null) {
-                exceptionHandler.setAccessible(true);
-                Object result = exceptionHandler.invoke(bean, ex);
-                // 检查异常处理器上的 @ResponseStatus
-                if (exceptionHandler.isAnnotationPresent(ResponseStatus.class)) {
-                    ResponseStatus status = exceptionHandler.getAnnotation(ResponseStatus.class);
-                    response.setStatus(status.value());
-                }
-                return result;
+            
+            // 然后尝试使用本地异常处理器
+            Method localHandler = findExceptionHandler(bean.getClass(), ex.getClass());
+            if (localHandler != null) {
+                return handleException(localHandler, ex, response);
             }
+            
+            // 最后尝试使用全局异常处理器
+            for (Object handler : globalExceptionHandlers) {
+                Method globalHandler = findExceptionHandler(handler.getClass(), ex.getClass());
+                if (globalHandler != null) {
+                    return handleException(handler, globalHandler, ex, response);
+                }
+            }
+            
+            // 如果没有找到任何处理器，重新抛出异常
             throw e;
         }
     }
     
-    private Method findExceptionHandler(Class<?> exceptionClass) {
-        // 查找所有带有@ExceptionHandler注解的方法
+    private Object handleException(Method handler, Throwable ex, HttpServletResponse response) 
+            throws Exception {
+        handler.setAccessible(true);
+        Object result = handler.invoke(bean, ex);
+        if (handler.isAnnotationPresent(ResponseStatus.class)) {
+            ResponseStatus status = handler.getAnnotation(ResponseStatus.class);
+            response.setStatus(status.value());
+        }
+        return result;
+    }
+    
+    private Object handleException(Object handler, Method method, Throwable ex, 
+            HttpServletResponse response) throws Exception {
+        method.setAccessible(true);
+        Object result = method.invoke(handler, ex);
+        if (method.isAnnotationPresent(ResponseStatus.class)) {
+            ResponseStatus status = method.getAnnotation(ResponseStatus.class);
+            response.setStatus(status.value());
+        }
+        return result;
+    }
+    
+    private Method findExceptionHandler(Class<?> handlerClass, Class<? extends Throwable> exceptionClass) {
         Method bestMatch = null;
         Class<?> bestType = null;
         
-        for (Method method : bean.getClass().getDeclaredMethods()) {
+        for (Method method : handlerClass.getDeclaredMethods()) {
             if (method.isAnnotationPresent(ExceptionHandler.class)) {
                 ExceptionHandler annotation = method.getAnnotation(ExceptionHandler.class);
                 for (Class<? extends Throwable> exceptionType : annotation.value()) {
                     if (exceptionType.isAssignableFrom(exceptionClass)) {
-                        // 找到匹配的处理器，检查是否是最具体的匹配
                         if (bestType == null || bestType.isAssignableFrom(exceptionType)) {
                             bestMatch = method;
                             bestType = exceptionType;

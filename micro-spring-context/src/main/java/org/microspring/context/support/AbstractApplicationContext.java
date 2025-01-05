@@ -12,6 +12,9 @@ import java.util.List;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.annotation.Annotation;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {
     protected final DefaultBeanFactory beanFactory;
@@ -224,5 +227,24 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     @Override
     public String[] getBeanNamesForAnnotation(Class<? extends Annotation> annotationType) {
         return beanFactory.getBeanNamesForAnnotation(annotationType);
+    }
+    
+    @Override
+    public Map<String, Object> getBeansWithAnnotation(Class<? extends Annotation> annotationType) {
+        Map<String, Object> result = new HashMap<>();
+        Set<String> beanNames = getBeanFactory().getBeanDefinitionNames();
+        
+        for (String beanName : beanNames) {
+            Object bean = getBean(beanName);
+            if (bean.getClass().isAnnotationPresent(annotationType)) {
+                result.put(beanName, bean);
+            }
+        }
+        
+        return result;
+    }
+    
+    protected DefaultBeanFactory getBeanFactory() {
+        return this.beanFactory;
     }
 } 

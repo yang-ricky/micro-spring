@@ -5,6 +5,7 @@ import org.microspring.web.method.HandlerMethod;
 import org.microspring.web.servlet.handler.RequestMappingHandlerMapping;
 import org.microspring.web.annotation.ResponseBody;
 import org.microspring.web.annotation.RestController;
+import org.microspring.web.annotation.RestControllerAdvice;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -12,12 +13,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
 
 public class DispatcherServlet extends HttpServlet {
     
     private ApplicationContext applicationContext;
     private HandlerMapping handlerMapping;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private List<Object> globalExceptionHandlers;
     
     public DispatcherServlet(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -26,6 +31,12 @@ public class DispatcherServlet extends HttpServlet {
     @Override
     public void init() throws ServletException {
         this.handlerMapping = new RequestMappingHandlerMapping(applicationContext);
+        initGlobalExceptionHandlers();
+    }
+    
+    private void initGlobalExceptionHandlers() {
+        Map<String, Object> beans = applicationContext.getBeansWithAnnotation(RestControllerAdvice.class);
+        this.globalExceptionHandlers = new ArrayList<>(beans.values());
     }
     
     @Override
@@ -38,7 +49,7 @@ public class DispatcherServlet extends HttpServlet {
                 return;
             }
             
-            Object result = handlerMethod.invokeAndHandle(request, response);
+            Object result = handlerMethod.invokeAndHandle(request, response, globalExceptionHandlers);
             if (result != null) {
                 if (result instanceof String && !isResponseBody(handlerMethod)) {
                     response.setContentType("text/plain;charset=UTF-8");
