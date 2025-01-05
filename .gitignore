@@ -4,3 +4,4 @@ micro-spring.iml
 info.txt
 *.iml
 output.txt
+.DS_Store
