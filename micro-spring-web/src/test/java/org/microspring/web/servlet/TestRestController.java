@@ -40,6 +40,11 @@ public class TestRestController {
         return new UserList(json.toString());
     }
     
+    @DeleteMapping("/user/{id}")
+    public String deleteUser() {
+        return "{\"message\":\"User deleted successfully\"}";
+    }
+    
     public static class User {
         private String name;
         private int age;

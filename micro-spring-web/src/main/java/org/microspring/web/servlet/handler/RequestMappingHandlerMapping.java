@@ -12,6 +12,7 @@ import org.microspring.web.servlet.MethodNotAllowedException;
 import org.microspring.web.annotation.RequestMethod;
 import org.microspring.web.annotation.PostMapping;
 import org.microspring.web.annotation.PutMapping;
+import org.microspring.web.annotation.DeleteMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
@@ -60,9 +61,11 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
                 GetMapping getMapping = method.getAnnotation(GetMapping.class);
                 PostMapping postMapping = method.getAnnotation(PostMapping.class);
                 PutMapping putMapping = method.getAnnotation(PutMapping.class);
+                DeleteMapping deleteMapping = method.getAnnotation(DeleteMapping.class);
                 
                 if (requestMapping != null || getMapping != null || 
-                    postMapping != null || putMapping != null) {
+                    postMapping != null || putMapping != null ||
+                    deleteMapping != null) {
                     
                     String methodUrl = "";
                     RequestMethod[] methods = {};
@@ -79,6 +82,9 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
                     } else if (putMapping != null) {
                         methodUrl = putMapping.value();
                         methods = new RequestMethod[]{RequestMethod.PUT};
+                    } else if (deleteMapping != null) {
+                        methodUrl = deleteMapping.value();
+                        methods = new RequestMethod[]{RequestMethod.DELETE};
                     }
                     
                     String fullUrl = baseUrl + methodUrl;

@@ -112,12 +112,29 @@ public class RestControllerTest {
     }
     
     @Test
+    public void testDeleteMapping() throws Exception {
+        // Mock request
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getContextPath()).thenReturn("");
+        when(request.getRequestURI()).thenReturn("/api/user/1");
+        when(request.getMethod()).thenReturn("DELETE");
+
+        // Execute
+        servlet.service(request, response);
+        writer.flush();
+
+        // Verify
+        verify(response).setContentType("application/json;charset=UTF-8");
+        assertEquals("{\"message\":\"User deleted successfully\"}", stringWriter.toString());
+    }
+    
+    @Test
     public void testMethodNotAllowed() throws Exception {
         // Mock request with wrong HTTP method
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getContextPath()).thenReturn("");
-        when(request.getRequestURI()).thenReturn("/api/user");
-        when(request.getMethod()).thenReturn("DELETE");  // 使用未支持的方法
+        when(request.getRequestURI()).thenReturn("/api/user/1");
+        when(request.getMethod()).thenReturn("PATCH");  // 使用未支持的方法
 
         // Execute
         servlet.service(request, response);
