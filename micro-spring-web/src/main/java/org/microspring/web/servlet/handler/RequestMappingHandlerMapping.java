@@ -2,20 +2,29 @@ package org.microspring.web.servlet.handler;
 
 import org.microspring.context.ApplicationContext;
 import org.microspring.web.annotation.Controller;
+import org.microspring.web.annotation.GetMapping;
 import org.microspring.web.annotation.RequestMapping;
 import org.microspring.web.annotation.RestController;
 import org.microspring.web.context.WebApplicationContext;
 import org.microspring.web.method.HandlerMethod;
 import org.microspring.web.servlet.HandlerMapping;
+import org.microspring.web.servlet.MethodNotAllowedException;
+import org.microspring.web.annotation.RequestMethod;
+import org.microspring.web.annotation.PostMapping;
+import org.microspring.web.annotation.PutMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.HashSet;
 
 public class RequestMappingHandlerMapping implements HandlerMapping {
     
-    private final Map<String, HandlerMethod> handlerMethods = new HashMap<>();
+    private final Map<RequestMappingInfo, HandlerMethod> handlerMethods = new HashMap<>();
     
     public RequestMappingHandlerMapping(ApplicationContext applicationContext) {
         if (!(applicationContext instanceof WebApplicationContext)) {
@@ -47,12 +56,36 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
             
             // Get method-level mapping
             for (Method method : controllerClass.getMethods()) {
-                if (method.isAnnotationPresent(RequestMapping.class)) {
-                    String methodUrl = method.getAnnotation(RequestMapping.class).value();
-                    String fullUrl = baseUrl + methodUrl;
+                RequestMapping requestMapping = method.getAnnotation(RequestMapping.class);
+                GetMapping getMapping = method.getAnnotation(GetMapping.class);
+                PostMapping postMapping = method.getAnnotation(PostMapping.class);
+                PutMapping putMapping = method.getAnnotation(PutMapping.class);
+                
+                if (requestMapping != null || getMapping != null || 
+                    postMapping != null || putMapping != null) {
                     
-                    handlerMethods.put(fullUrl, new HandlerMethod(controller, method));
-                    System.out.println("[HandlerMapping] Mapped " + fullUrl + 
+                    String methodUrl = "";
+                    RequestMethod[] methods = {};
+                    
+                    if (requestMapping != null) {
+                        methodUrl = requestMapping.value();
+                        methods = requestMapping.method();
+                    } else if (getMapping != null) {
+                        methodUrl = getMapping.value();
+                        methods = new RequestMethod[]{RequestMethod.GET};
+                    } else if (postMapping != null) {
+                        methodUrl = postMapping.value();
+                        methods = new RequestMethod[]{RequestMethod.POST};
+                    } else if (putMapping != null) {
+                        methodUrl = putMapping.value();
+                        methods = new RequestMethod[]{RequestMethod.PUT};
+                    }
+                    
+                    String fullUrl = baseUrl + methodUrl;
+                    RequestMappingInfo mappingInfo = new RequestMappingInfo(fullUrl, methods);
+                    
+                    handlerMethods.put(mappingInfo, new HandlerMethod(controller, method));
+                    System.out.println("[HandlerMapping] Mapped " + mappingInfo + 
                         " -> " + controllerClass.getSimpleName() + "." + method.getName());
                 }
             }
@@ -62,6 +95,91 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
     @Override
     public HandlerMethod getHandler(HttpServletRequest request) {
         String lookupPath = request.getRequestURI().substring(request.getContextPath().length());
-        return handlerMethods.get(lookupPath);
+        String method = request.getMethod();
+        
+        // 先找到匹配的路径
+        HandlerMethod handlerMethod = null;
+        RequestMappingInfo matchedInfo = null;
+        
+        for (Map.Entry<RequestMappingInfo, HandlerMethod> entry : handlerMethods.entrySet()) {
+            RequestMappingInfo mappingInfo = entry.getKey();
+            if (mappingInfo.getPath().equals(lookupPath)) {
+                matchedInfo = mappingInfo;
+                handlerMethod = entry.getValue();
+                // 如果方法也匹配，直接返回
+                if (mappingInfo.matches(lookupPath, method)) {
+                    return handlerMethod;
+                }
+            }
+        }
+        
+        // 如果找到了路径但方法不匹配，返回 405 Method Not Allowed
+        if (matchedInfo != null) {
+            throw new MethodNotAllowedException(method, matchedInfo.getAllowedMethods());
+        }
+        
+        return null;
+    }
+    
+    private static class RequestMappingInfo {
+        private final String path;
+        private final RequestMethod[] methods;
+        
+        public RequestMappingInfo(String path, RequestMethod[] methods) {
+            this.path = path;
+            this.methods = methods.length == 0 ? 
+                RequestMethod.values() : methods;  // 如果没指定方法，匹配所有方法
+        }
+        
+        public boolean matches(String lookupPath, String httpMethod) {
+            if (!path.equals(lookupPath)) {
+                return false;
+            }
+            
+            if (methods.length == 0) {
+                return true;
+            }
+            
+            for (RequestMethod method : methods) {
+                if (method.name().equals(httpMethod)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("%s %s", Arrays.toString(methods), path);
+        }
+        
+        // 需要实现 equals 和 hashCode 方法，因为这个类作为 Map 的 key
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            RequestMappingInfo that = (RequestMappingInfo) o;
+            return Objects.equals(path, that.path) && 
+                   Arrays.equals(methods, that.methods);
+        }
+        
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(path);
+            result = 31 * result + Arrays.hashCode(methods);
+            return result;
+        }
+        
+        public String getPath() {
+            return path;
+        }
+        
+        public Set<String> getAllowedMethods() {
+            Set<String> allowed = new HashSet<>();
+            for (RequestMethod method : methods) {
+                allowed.add(method.name());
+            }
+            return allowed;
+        }
     }
 } 

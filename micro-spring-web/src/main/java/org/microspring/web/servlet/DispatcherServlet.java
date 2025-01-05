@@ -29,14 +29,14 @@ public class DispatcherServlet extends HttpServlet {
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {
-        HandlerMethod handlerMethod = handlerMapping.getHandler(request);
-        
-        if (handlerMethod == null) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
-        }
-        
         try {
+            HandlerMethod handlerMethod = handlerMapping.getHandler(request);
+            
+            if (handlerMethod == null) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+            
             Object result = handlerMethod.getMethod().invoke(handlerMethod.getBean());
             
             // 检查是否需要 JSON 响应
@@ -48,6 +48,8 @@ public class DispatcherServlet extends HttpServlet {
                 response.setContentType("text/plain;charset=UTF-8");
                 response.getWriter().write(String.valueOf(result));
             }
+        } catch (MethodNotAllowedException e) {
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
         } catch (Exception e) {
             throw new ServletException("Error invoking handler method", e);
         }

@@ -6,5 +6,13 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface RequestMapping {
+    /**
+     * 请求路径
+     */
     String value() default "";
+    
+    /**
+     * 请求方法
+     */
+    RequestMethod[] method() default {};
 } 
