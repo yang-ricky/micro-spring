@@ -52,11 +52,11 @@
         </dependency>
 
         <!-- MicroTomcat -->
-        <!-- <dependency>
+        <dependency>
             <groupId>com.microtomcat</groupId>
             <artifactId>micro-tomcat-core</artifactId>
             <version>1.0-SNAPSHOT</version>
-        </dependency> -->
+        </dependency>
 
         <!-- Jackson for JSON -->
         <dependency>
