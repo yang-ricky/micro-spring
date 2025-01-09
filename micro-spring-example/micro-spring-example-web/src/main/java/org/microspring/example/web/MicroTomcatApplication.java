@@ -45,6 +45,9 @@ public class MicroTomcatApplication {
             tomcat.addServlet(context, "dispatcherServlet", dispatcherServlet);
             tomcat.addServletMappingDecoded(context, "/*", "dispatcherServlet");
             
+            context.addFilter("authFilter", new AuthenticationFilter());
+            context.addFilterMapping("/*", "authFilter");
+
             // 启动服务器
             tomcat.start();
             System.out.println("Server started on port 8080");
