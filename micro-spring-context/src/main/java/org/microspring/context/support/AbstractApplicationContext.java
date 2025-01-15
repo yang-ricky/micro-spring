@@ -14,6 +14,9 @@ import org.microspring.context.event.ContextRefreshedEvent;
 import org.microspring.context.event.ApplicationListener;
 import org.microspring.context.event.Async;
 import org.microspring.core.annotation.Order;
+import org.microspring.context.event.ApplicationEventMulticaster;
+import org.microspring.context.event.SimpleApplicationEventMulticaster;
+import org.microspring.context.event.EventListenerMethodProcessor;
 
 import java.util.List;
 import java.lang.reflect.Field;
@@ -34,6 +37,7 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     protected final DefaultBeanFactory beanFactory;
     protected final ValueResolver valueResolver;
     private final List<ApplicationListener<?>> applicationListeners = new ArrayList<>();
+    private final ApplicationEventMulticaster eventMulticaster;
     private final ExecutorService eventExecutor = Executors.newFixedThreadPool(4);
     
     private ApplicationContext parent;
@@ -41,11 +45,17 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     public AbstractApplicationContext() {
         this.beanFactory = new DefaultBeanFactory();
         this.valueResolver = new DefaultValueResolver(beanFactory);
+        SimpleApplicationEventMulticaster multicaster = new SimpleApplicationEventMulticaster();
+        multicaster.setTaskExecutor(eventExecutor);
+        this.eventMulticaster = multicaster;
     }
     
     public AbstractApplicationContext(DefaultBeanFactory beanFactory) {
         this.beanFactory = beanFactory;
         this.valueResolver = new DefaultValueResolver(beanFactory);
+        SimpleApplicationEventMulticaster multicaster = new SimpleApplicationEventMulticaster();
+        multicaster.setTaskExecutor(eventExecutor);
+        this.eventMulticaster = multicaster;
     }
     
     @Override
@@ -257,15 +267,30 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     @Override
     public Map<String, Object> getBeansWithAnnotation(Class<? extends Annotation> annotationType) {
         Map<String, Object> result = new HashMap<>();
-        Set<String> beanNames = getBeanFactory().getBeanDefinitionNames();
+        String[] beanNames = getBeanNamesForAnnotation(annotationType);
         
         for (String beanName : beanNames) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            if (bd.isLazyInit()) {
+                continue;
+            }
             Object bean = getBean(beanName);
-            if (bean.getClass().isAnnotationPresent(annotationType)) {
+            result.put(beanName, bean);
+        }
+        
+        return result;
+    }
+
+    public Map<String, Object> getAllBeansWithAnnotation(Class<? extends Annotation> annotationType) {
+        Map<String, Object> result = new HashMap<>();
+        Set<String> beanNames = getBeanFactory().getBeanDefinitionNames();
+
+        for (String beanName : beanNames) {
+            Object bean = getBean(beanName);
+           if (bean.getClass().isAnnotationPresent(annotationType)) {
                 result.put(beanName, bean);
             }
         }
-        
         return result;
     }
     
@@ -284,11 +309,9 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     }
     
     protected void registerListeners() {
-        String[] listenerNames = getBeanNamesForType(ApplicationListener.class);
-        for (String listenerName : listenerNames) {
-            ApplicationListener<?> listener = (ApplicationListener<?>) getBean(listenerName);
-            addApplicationListener(listener);
-        }
+        // 处理所有的事件监听器（包括@EventListener注解和ApplicationListener接口）
+        EventListenerMethodProcessor processor = new EventListenerMethodProcessor(this);
+        processor.processEventListenerMethods();
     }
     
     @Override
@@ -392,10 +415,8 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         System.out.println("Event class: " + event.getClass());
         
         // 检查事件类型的继承关系
-        System.out.println("Event class hierarchy:");
         Class<?> currentClass = event.getClass();
         while (currentClass != null) {
-            System.out.println(" - " + currentClass.getName());
             currentClass = currentClass.getSuperclass();
         }
         

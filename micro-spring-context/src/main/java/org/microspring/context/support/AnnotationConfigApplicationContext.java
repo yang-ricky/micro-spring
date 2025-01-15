@@ -9,6 +9,7 @@ import org.microspring.core.beans.PropertyValue;
 import org.microspring.stereotype.Component;
 import org.microspring.context.event.ApplicationListener;
 import org.microspring.context.event.ContextRefreshedEvent;
+import org.microspring.context.event.EventListenerMethodProcessor;
 import org.microspring.context.event.SimpleApplicationEventPublisher;
 
 import java.util.ArrayList;
@@ -43,10 +44,12 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     public void refresh() {
         if (basePackage != null) {
             // 1. 扫描组件
+            System.out.println("Scanning package: " + basePackage);
             scanPackages(basePackage);
             
             // 2. 只初始化非延迟加载的单例bean
             for (String beanName : beanFactory.getBeanDefinitionNames()) {
+                System.out.println("Found bean: " + beanName);
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
                 if (bd.isSingleton() && !bd.isLazyInit()) {
                     getBean(beanName);
@@ -54,10 +57,11 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             }
         }
 
-        // 注册监听器
+        // 3. 注册监听器
+        System.out.println("Registering listeners");
         registerListeners();
         
-        // 发布刷新完成事件
+        // 4. 发布刷新完成事件
         publishEvent(new ContextRefreshedEvent(this));
     }
 
@@ -196,6 +200,12 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         
         // 注册BeanDefinition
         beanFactory.registerBeanDefinition(beanName, bd);
+    }
+
+    protected void registerEventListenerProcessor() {
+        // 直接创建并使用 EventListenerMethodProcessor
+        EventListenerMethodProcessor processor = new EventListenerMethodProcessor(this);
+        processor.processEventListenerMethods();
     }
 
     // 添加这个方法以支持测试用例
