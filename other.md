@@ -14,15 +14,15 @@
 ### 任务15.1：支持 ApplicationEvent 与 ApplicationListener
 **场景**：手写最简版事件模型，在容器启动或手动触发时，分发事件给 Listener
 
-- [x] **定义 `ApplicationEvent`**  
+- [ ] **定义 `ApplicationEvent`**  
   - 类似 `public class ApplicationEvent { private final long timestamp; ... }`  
   - 提供构造方法，记录事件产生时间、事件源对象等信息
 
-- [x] **定义 `ApplicationListener`**  
+- [ ] **定义 `ApplicationListener`**  
   - 接口：`public interface ApplicationListener<E extends ApplicationEvent> { void onApplicationEvent(E event); }`  
   - 用来监听特定类型的事件
 
-- [x] **在 `ApplicationContext` 中增加事件发布功能**  
+- [ ] **在 `ApplicationContext` 中增加事件发布功能**  
   - 创建一个 `ApplicationEventPublisher` 接口，提供 `publishEvent(ApplicationEvent event)` 方法  
   - `ApplicationContext` 默认实现此接口，内部维护一组 `ApplicationListener`  
   - 当调用 `publishEvent(...)` 时，遍历并调用对应的 `listener.onApplicationEvent(...)`
@@ -38,14 +38,14 @@
 ### 任务15.2：自定义事件与监听器
 **场景**：除了容器内部事件外，用户可能需要发布自定义业务事件，进行解耦
 
-- [x] **自定义事件**  
+- [ ] **自定义事件**  
   - 比如 `UserRegisteredEvent`，包含一个 `User` 对象或必要的用户信息
 
-- [x] **编写自定义监听器**  
+- [ ] **编写自定义监听器**  
   - `UserRegisterListener` 实现 `ApplicationListener<UserRegisteredEvent>`  
   - 在 `onApplicationEvent(...)` 内进行后续操作，如发送欢迎邮件、打印日志等
 
-- [x] **事件触发**  
+- [ ] **事件触发**  
   - 在任何地方，拿到 `ApplicationEventPublisher` 后，调用 `publisher.publishEvent(new UserRegisteredEvent(user))`
 
 #### 产出要求
@@ -58,14 +58,14 @@
 ### 任务15.3：事件层次结构与高级玩法（可选）
 **场景**：扩展事件模型，如让一个监听器可以监听多种事件；或事件之间存在继承关系
 
-- [x] **事件继承结构**  
+- [ ] **事件继承结构**  
   - `ApplicationContextEvent` → `ContextRefreshedEvent` / `ContextClosedEvent` / `ContextStartedEvent` 等  
   - 监听器也可以监听父类事件
 
-- [x] **一次发布，多层监听**  
+- [ ] **一次发布，多层监听**  
   - 当发布一个 `ContextRefreshedEvent` 时，监听 `ContextRefreshedEvent` 的监听器和监听 `ApplicationContextEvent` 的监听器都能收到
 
-- [x] **组合监听器**  
+- [ ] **组合监听器**  
   - 一个监听器实现多个事件类型的处理；或使用 `SmartApplicationListener`（如果实现更高级功能）
 
 #### 产出要求

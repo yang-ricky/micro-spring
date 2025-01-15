@@ -17,6 +17,7 @@ import org.microspring.core.annotation.Order;
 import org.microspring.context.event.ApplicationEventMulticaster;
 import org.microspring.context.event.SimpleApplicationEventMulticaster;
 import org.microspring.context.event.EventListenerMethodProcessor;
+import org.microspring.context.event.SmartApplicationListener;
 
 import java.util.List;
 import java.lang.reflect.Field;
@@ -347,12 +348,19 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @SuppressWarnings("unchecked")
     private void invokeListener(ApplicationListener listener, ApplicationEvent event) {
-        Method onApplicationEventMethod = null;
+        if (listener instanceof SmartApplicationListener) {
+            // SmartApplicationListener 直接调用，类型检查已经在 supportsEvent 中完成
+            listener.onApplicationEvent(event);
+            return;
+        }
+
+        final Method onApplicationEventMethod;
         try {
             // 获取监听器的泛型类型
             Class<?> eventType = getEventType(listener);
             // 使用监听器声明的事件类型而不是具体的事件类型
             onApplicationEventMethod = listener.getClass().getMethod("onApplicationEvent", eventType);
+            onApplicationEventMethod.setAccessible(true);
         } catch (NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
@@ -361,7 +369,7 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             // 异步处理
             eventExecutor.submit(() -> {
                 try {
-                    listener.onApplicationEvent(event);
+                    onApplicationEventMethod.invoke(listener, event);
                 } catch (Exception e) {
                     // 异步处理中的异常需要特别处理
                     System.err.println("Error processing event asynchronously: " + e.getMessage());
@@ -370,7 +378,7 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         } else {
             // 同步处理
             try {
-                listener.onApplicationEvent(event);
+                onApplicationEventMethod.invoke(listener, event);
             } catch (Exception e) {
                 throw new RuntimeException("Error invoking listener", e);
             }
@@ -392,12 +400,10 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             }
         }
         
-        // 根据@Order注解排序
+        // 根据@Order注解和SmartApplicationListener接口排序
         allListeners.sort((l1, l2) -> {
-            Order order1 = l1.getClass().getAnnotation(Order.class);
-            Order order2 = l2.getClass().getAnnotation(Order.class);
-            int p1 = order1 != null ? order1.value() : Integer.MAX_VALUE;
-            int p2 = order2 != null ? order2.value() : Integer.MAX_VALUE;
+            int p1 = getListenerOrder(l1);
+            int p2 = getListenerOrder(l2);
             return Integer.compare(p1, p2);
         });
         
@@ -409,6 +415,13 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         System.out.println("\nChecking if listener " + listener.getClass().getSimpleName() + 
                           " supports event " + event.getClass().getSimpleName());
         
+        // 如果是SmartApplicationListener，使用其自定义的类型检查逻辑
+        if (listener instanceof SmartApplicationListener) {
+            SmartApplicationListener smartListener = (SmartApplicationListener) listener;
+            return smartListener.supportsEventType(event.getClass()) && 
+                   smartListener.supportsSourceType(event.getSource().getClass());
+        }
+
         // 获取监听器的泛型类型
         Class<?> eventType = getEventType(listener);
         System.out.println("Listener event type: " + eventType);
@@ -432,6 +445,11 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
      */
     private Class<?> getEventType(ApplicationListener<?> listener) {
         System.out.println("\nGetting event type for listener: " + listener.getClass().getSimpleName());
+        
+        // SmartApplicationListener 不需要获取泛型类型
+        if (listener instanceof SmartApplicationListener) {
+            return ApplicationEvent.class;
+        }
         
         // 先检查接口
         Type[] genericInterfaces = listener.getClass().getGenericInterfaces();
@@ -493,5 +511,13 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     @Override
     public ApplicationContext getParent() {
         return this.parent;
+    }
+    
+    private int getListenerOrder(ApplicationListener<?> listener) {
+        if (listener instanceof SmartApplicationListener) {
+            return ((SmartApplicationListener) listener).getOrder();
+        }
+        Order order = listener.getClass().getAnnotation(Order.class);
+        return order != null ? order.value() : Integer.MAX_VALUE;
     }
 } 
