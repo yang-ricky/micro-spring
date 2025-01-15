@@ -300,11 +300,14 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     private void invokeListener(ApplicationListener listener, ApplicationEvent event) {
         Method onApplicationEventMethod = null;
         try {
-            onApplicationEventMethod = listener.getClass().getMethod("onApplicationEvent", event.getClass());
+            // 获取监听器的泛型类型
+            Class<?> eventType = getEventType(listener);
+            // 使用监听器声明的事件类型而不是具体的事件类型
+            onApplicationEventMethod = listener.getClass().getMethod("onApplicationEvent", eventType);
         } catch (NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
-        
+
         if (onApplicationEventMethod.isAnnotationPresent(Async.class)) {
             // 异步处理
             eventExecutor.submit(() -> {
@@ -317,7 +320,11 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             });
         } else {
             // 同步处理
-            listener.onApplicationEvent(event);
+            try {
+                listener.onApplicationEvent(event);
+            } catch (Exception e) {
+                throw new RuntimeException("Error invoking listener", e);
+            }
         }
     }
     
@@ -342,36 +349,61 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     }
     
     private boolean supportsEvent(ApplicationListener<?> listener, ApplicationEvent event) {
+        System.out.println("\nChecking if listener " + listener.getClass().getSimpleName() + 
+                          " supports event " + event.getClass().getSimpleName());
+        
         // 获取监听器的泛型类型
         Class<?> eventType = getEventType(listener);
         
         // 检查事件是否是监听器要监听的类型或其子类
-        return eventType != null && eventType.isAssignableFrom(event.getClass());
+        boolean supports = eventType != null && eventType.isAssignableFrom(event.getClass());
+        System.out.println("Listener " + listener.getClass().getSimpleName() + 
+                          " (listening for " + eventType + ")" +
+                          " checking event " + event.getClass().getSimpleName() + 
+                          " -> supports=" + supports + 
+                          " (isAssignableFrom=" + (eventType != null && eventType.isAssignableFrom(event.getClass())) + ")");
+        return supports;
     }
     
     /**
      * 获取监听器的事件泛型类型
      */
     private Class<?> getEventType(ApplicationListener<?> listener) {
-        Class<?> listenerClass = listener.getClass();
-        // 获取所有接口
-        for (Type type : listenerClass.getGenericInterfaces()) {
+        System.out.println("\nGetting event type for listener: " + listener.getClass().getSimpleName());
+        
+        // 先检查接口
+        Type[] genericInterfaces = listener.getClass().getGenericInterfaces();
+        for (Type type : genericInterfaces) {
             if (type instanceof ParameterizedType) {
                 ParameterizedType paramType = (ParameterizedType) type;
-                // 检查是否是 ApplicationListener 接口
-                if (paramType.getRawType() == ApplicationListener.class) {
+                if (paramType.getRawType().equals(ApplicationListener.class)) {
                     Type[] typeArguments = paramType.getActualTypeArguments();
                     if (typeArguments != null && typeArguments.length > 0) {
                         Type typeArgument = typeArguments[0];
-                        // 如果是Class类型，直接返回
                         if (typeArgument instanceof Class) {
+                            System.out.println("Found event type from interface: " + typeArgument);
                             return (Class<?>) typeArgument;
                         }
                     }
                 }
             }
         }
-        return null;
+        
+        // 如果接口没找到，再检查父类
+        Type genericSuperclass = listener.getClass().getGenericSuperclass();
+        if (genericSuperclass instanceof ParameterizedType) {
+            ParameterizedType paramType = (ParameterizedType) genericSuperclass;
+            Type[] typeArguments = paramType.getActualTypeArguments();
+            if (typeArguments != null && typeArguments.length > 0) {
+                Type typeArgument = typeArguments[0];
+                if (typeArgument instanceof Class) {
+                    System.out.println("Found event type from superclass: " + typeArgument);
+                    return (Class<?>) typeArgument;
+                }
+            }
+        }
+        
+        throw new IllegalStateException("Could not find event type for listener: " + listener);
     }
     
     public void addApplicationListener(ApplicationListener<?> listener) {
