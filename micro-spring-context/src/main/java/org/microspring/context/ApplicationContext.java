@@ -33,4 +33,10 @@ public interface ApplicationContext extends BeanFactory, ApplicationEventPublish
     
     // 新增方法：获取带有指定注解的所有bean
     Map<String, Object> getBeansWithAnnotation(Class<? extends Annotation> annotationType);
+    
+    // 设置父容器
+    void setParent(ApplicationContext parent);
+    
+    // 获取父容器
+    ApplicationContext getParent();
 }
