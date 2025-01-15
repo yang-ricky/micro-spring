@@ -7,6 +7,13 @@ import org.microspring.core.BeanDefinition;
 import org.microspring.core.io.ClassPathBeanDefinitionScanner;
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
+import org.microspring.context.event.ApplicationEvent;
+import org.microspring.context.event.ApplicationEventPublisher;
+import org.microspring.context.event.SimpleApplicationEventPublisher;
+import org.microspring.context.event.ContextRefreshedEvent;
+import org.microspring.context.event.ApplicationListener;
+import org.microspring.context.event.Async;
+import org.microspring.core.annotation.Order;
 
 import java.util.List;
 import java.lang.reflect.Field;
@@ -14,11 +21,20 @@ import java.lang.reflect.Method;
 import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.ArrayList;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {
     protected final DefaultBeanFactory beanFactory;
     protected final ValueResolver valueResolver;
+    private final List<ApplicationListener<?>> applicationListeners = new ArrayList<>();
+    private final ExecutorService eventExecutor = Executors.newFixedThreadPool(4);
     
     public AbstractApplicationContext() {
         this.beanFactory = new DefaultBeanFactory();
@@ -32,9 +48,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @Override
     public abstract String getApplicationName();
-    
-    @Override
-    public abstract void refresh();
     
     @Override
     public long getStartupDate() {
@@ -222,6 +235,16 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                 }
             }
         }
+        
+        // 关闭线程池
+        eventExecutor.shutdown();
+        try {
+            if (!eventExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                eventExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            eventExecutor.shutdownNow();
+        }
     }
     
     @Override
@@ -246,5 +269,125 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     protected DefaultBeanFactory getBeanFactory() {
         return this.beanFactory;
+    }
+    
+    @Override
+    public void refresh() {
+        
+        // 注册监听器
+        registerListeners();
+        
+        // 发布刷新完成事件
+        publishEvent(new ContextRefreshedEvent(this));
+    }
+    
+    protected void registerListeners() {
+        String[] listenerNames = getBeanNamesForType(ApplicationListener.class);
+        for (String listenerName : listenerNames) {
+            ApplicationListener<?> listener = (ApplicationListener<?>) getBean(listenerName);
+            addApplicationListener(listener);
+        }
+    }
+    
+    @Override
+    public void publishEvent(ApplicationEvent event) {
+        for (ApplicationListener<?> listener : getApplicationListeners(event)) {
+            invokeListener(listener, event);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void invokeListener(ApplicationListener listener, ApplicationEvent event) {
+        Method onApplicationEventMethod = null;
+        try {
+            onApplicationEventMethod = listener.getClass().getMethod("onApplicationEvent", event.getClass());
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+        
+        if (onApplicationEventMethod.isAnnotationPresent(Async.class)) {
+            // 异步处理
+            eventExecutor.submit(() -> {
+                try {
+                    listener.onApplicationEvent(event);
+                } catch (Exception e) {
+                    // 异步处理中的异常需要特别处理
+                    System.err.println("Error processing event asynchronously: " + e.getMessage());
+                }
+            });
+        } else {
+            // 同步处理
+            listener.onApplicationEvent(event);
+        }
+    }
+    
+    private List<ApplicationListener<?>> getApplicationListeners(ApplicationEvent event) {
+        List<ApplicationListener<?>> allListeners = new ArrayList<>();
+        for (ApplicationListener<?> listener : applicationListeners) {
+            if (supportsEvent(listener, event)) {
+                allListeners.add(listener);
+            }
+        }
+        
+        // 根据@Order注解排序
+        allListeners.sort((l1, l2) -> {
+            Order order1 = l1.getClass().getAnnotation(Order.class);
+            Order order2 = l2.getClass().getAnnotation(Order.class);
+            int p1 = order1 != null ? order1.value() : Integer.MAX_VALUE;
+            int p2 = order2 != null ? order2.value() : Integer.MAX_VALUE;
+            return Integer.compare(p1, p2);
+        });
+        
+        return allListeners;
+    }
+    
+    private boolean supportsEvent(ApplicationListener<?> listener, ApplicationEvent event) {
+        // 获取监听器的泛型类型
+        Class<?> eventType = getEventType(listener);
+        
+        // 检查事件是否是监听器要监听的类型或其子类
+        return eventType != null && eventType.isAssignableFrom(event.getClass());
+    }
+    
+    /**
+     * 获取监听器的事件泛型类型
+     */
+    private Class<?> getEventType(ApplicationListener<?> listener) {
+        Class<?> listenerClass = listener.getClass();
+        // 获取所有接口
+        for (Type type : listenerClass.getGenericInterfaces()) {
+            if (type instanceof ParameterizedType) {
+                ParameterizedType paramType = (ParameterizedType) type;
+                // 检查是否是 ApplicationListener 接口
+                if (paramType.getRawType() == ApplicationListener.class) {
+                    Type[] typeArguments = paramType.getActualTypeArguments();
+                    if (typeArguments != null && typeArguments.length > 0) {
+                        Type typeArgument = typeArguments[0];
+                        // 如果是Class类型，直接返回
+                        if (typeArgument instanceof Class) {
+                            return (Class<?>) typeArgument;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    public void addApplicationListener(ApplicationListener<?> listener) {
+        if (listener != null) {
+            this.applicationListeners.add(listener);
+        }
+    }
+    
+    public String[] getBeanNamesForType(Class<?> type) {
+        Set<String> result = new HashSet<>();
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            if (type.isAssignableFrom(bd.getBeanClass())) {
+                result.add(beanName);
+            }
+        }
+        return result.toArray(new String[0]);
     }
 } 

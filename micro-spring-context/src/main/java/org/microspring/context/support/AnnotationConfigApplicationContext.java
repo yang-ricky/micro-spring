@@ -7,6 +7,9 @@ import org.microspring.beans.factory.annotation.Lazy;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
 import org.microspring.stereotype.Component;
+import org.microspring.context.event.ApplicationListener;
+import org.microspring.context.event.ContextRefreshedEvent;
+import org.microspring.context.event.SimpleApplicationEventPublisher;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,12 +18,20 @@ import java.net.URL;
 import java.util.Enumeration;
 
 public class AnnotationConfigApplicationContext extends AbstractApplicationContext {
-    private final String basePackage;
+    private String basePackage;
+    
+    public AnnotationConfigApplicationContext() {
+        super();
+    }
     
     public AnnotationConfigApplicationContext(String basePackage) {
         super();
         this.basePackage = basePackage;
         refresh();
+    }
+
+    public void setBasePackage(String basePackage) {
+        this.basePackage = basePackage;
     }
 
     @Override
@@ -30,16 +41,24 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
 
     @Override
     public void refresh() {
-        // 1. 扫描组件
-        scanPackages(basePackage);
-        
-        // 2. 只初始化非延迟加载的单例bean
-        for (String beanName : beanFactory.getBeanDefinitionNames()) {
-            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
-            if (bd.isSingleton() && !bd.isLazyInit()) {
-                getBean(beanName);
+        if (basePackage != null) {
+            // 1. 扫描组件
+            scanPackages(basePackage);
+            
+            // 2. 只初始化非延迟加载的单例bean
+            for (String beanName : beanFactory.getBeanDefinitionNames()) {
+                BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+                if (bd.isSingleton() && !bd.isLazyInit()) {
+                    getBean(beanName);
+                }
             }
         }
+
+        // 注册监听器
+        registerListeners();
+        
+        // 发布刷新完成事件
+        publishEvent(new ContextRefreshedEvent(this));
     }
 
     protected void scanPackages(String... basePackages) {

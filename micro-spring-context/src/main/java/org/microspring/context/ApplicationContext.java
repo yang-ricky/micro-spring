@@ -1,10 +1,11 @@
 package org.microspring.context;
 
 import org.microspring.core.BeanFactory;
+import org.microspring.context.event.ApplicationEventPublisher;
 import java.lang.annotation.Annotation;
 import java.util.Map;
 
-public interface ApplicationContext extends BeanFactory {
+public interface ApplicationContext extends BeanFactory, ApplicationEventPublisher {
     /**
      * 获取应用程序名称
      */
