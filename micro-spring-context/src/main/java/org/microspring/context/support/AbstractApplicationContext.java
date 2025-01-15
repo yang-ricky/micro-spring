@@ -7,6 +7,11 @@ import org.microspring.core.BeanDefinition;
 import org.microspring.core.io.ClassPathBeanDefinitionScanner;
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
+import org.microspring.context.event.ApplicationEvent;
+import org.microspring.context.event.ApplicationEventPublisher;
+import org.microspring.context.event.SimpleApplicationEventPublisher;
+import org.microspring.context.event.ContextRefreshedEvent;
+import org.microspring.context.event.ApplicationListener;
 
 import java.util.List;
 import java.lang.reflect.Field;
@@ -14,11 +19,14 @@ import java.lang.reflect.Method;
 import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.ArrayList;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {
     protected final DefaultBeanFactory beanFactory;
     protected final ValueResolver valueResolver;
+    private final List<ApplicationListener<?>> applicationListeners = new ArrayList<>();
     
     public AbstractApplicationContext() {
         this.beanFactory = new DefaultBeanFactory();
@@ -32,9 +40,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @Override
     public abstract String getApplicationName();
-    
-    @Override
-    public abstract void refresh();
     
     @Override
     public long getStartupDate() {
@@ -246,5 +251,66 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     protected DefaultBeanFactory getBeanFactory() {
         return this.beanFactory;
+    }
+    
+    @Override
+    public void refresh() {
+        
+        // 注册监听器
+        registerListeners();
+        
+        // 发布刷新完成事件
+        publishEvent(new ContextRefreshedEvent(this));
+    }
+    
+    protected void registerListeners() {
+        String[] listenerNames = getBeanNamesForType(ApplicationListener.class);
+        for (String listenerName : listenerNames) {
+            ApplicationListener<?> listener = (ApplicationListener<?>) getBean(listenerName);
+            addApplicationListener(listener);
+        }
+    }
+    
+    @Override
+    public void publishEvent(ApplicationEvent event) {
+        for (ApplicationListener<?> listener : getApplicationListeners(event)) {
+            invokeListener(listener, event);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void invokeListener(ApplicationListener listener, ApplicationEvent event) {
+        listener.onApplicationEvent(event);
+    }
+    
+    private List<ApplicationListener<?>> getApplicationListeners(ApplicationEvent event) {
+        List<ApplicationListener<?>> allListeners = new ArrayList<>();
+        for (ApplicationListener<?> listener : applicationListeners) {
+            if (supportsEvent(listener, event)) {
+                allListeners.add(listener);
+            }
+        }
+        return allListeners;
+    }
+    
+    private boolean supportsEvent(ApplicationListener<?> listener, ApplicationEvent event) {
+        return true; // 简化版实现，实际应该检查泛型类型
+    }
+    
+    public void addApplicationListener(ApplicationListener<?> listener) {
+        if (listener != null) {
+            this.applicationListeners.add(listener);
+        }
+    }
+    
+    public String[] getBeanNamesForType(Class<?> type) {
+        Set<String> result = new HashSet<>();
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            if (type.isAssignableFrom(bd.getBeanClass())) {
+                result.add(beanName);
+            }
+        }
+        return result.toArray(new String[0]);
     }
 } 
