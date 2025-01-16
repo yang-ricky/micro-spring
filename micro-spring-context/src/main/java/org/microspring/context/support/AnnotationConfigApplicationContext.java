@@ -11,12 +11,15 @@ import org.microspring.context.event.ApplicationListener;
 import org.microspring.context.event.ContextRefreshedEvent;
 import org.microspring.context.event.EventListenerMethodProcessor;
 import org.microspring.context.event.SimpleApplicationEventPublisher;
+import org.microspring.stereotype.Service;
+import org.microspring.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
 import java.net.URL;
 import java.util.Enumeration;
+import java.io.IOException;
 
 public class AnnotationConfigApplicationContext extends AbstractApplicationContext {
     private String basePackage;
@@ -73,16 +76,19 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 
                 // 获取类路径下的资源
                 Enumeration<URL> resources = classLoader.getResources(path);
+
                 while (resources.hasMoreElements()) {
                     URL resource = resources.nextElement();
-                    File directory = new File(resource.getFile());
-                    if (directory.exists()) {
-                        scanDirectory(directory, basePackage);
+                    if (resource != null) {
+                        File directory = new File(resource.getFile());
+                        if (directory.exists()) {
+                            scanDirectory(directory, basePackage);
+                        }
                     }
                 }
             }
-        } catch (Exception e) {
-            throw new RuntimeException("Error scanning packages", e);
+        } catch (IOException e) {
+            throw new RuntimeException("Error scanning packages: " + e.getMessage(), e);
         }
     }
 
@@ -93,15 +99,23 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 if (file.isDirectory()) {
                     scanDirectory(file, basePackage + "." + file.getName());
                 } else if (file.getName().endsWith(".class")) {
-                    String className = basePackage + "." + 
-                        file.getName().substring(0, file.getName().length() - 6);
                     try {
+                        String className = basePackage + "." + 
+                            file.getName().substring(0, file.getName().length() - 6);
+                        System.out.println("Scanning class: " + className);
                         Class<?> clazz = Class.forName(className);
-                        if (clazz.isAnnotationPresent(Component.class)) {
+                        
+                        // 检查是否有构造型注解
+                        if (clazz.isAnnotationPresent(Component.class) ||
+                            clazz.isAnnotationPresent(Service.class) ||
+                            clazz.isAnnotationPresent(Repository.class)) {
+                            System.out.println("Found annotated class: " + className);
                             registerBean(clazz);
                         }
-                    } catch (ClassNotFoundException e) {
-                        // 忽略找不到的类
+                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        System.out.println("Warning: Could not load class: " + e.getMessage());
+                    } catch (Exception e) {
+                        System.out.println("Warning: Error scanning class: " + e.getMessage());
                     }
                 }
             }
@@ -109,23 +123,39 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     }
 
     private void registerBean(Class<?> clazz) {
-        String beanName;
-        org.microspring.stereotype.Component stereotypeComponent = 
-            clazz.getAnnotation(org.microspring.stereotype.Component.class);
+        String beanName = null;
         
-        if (stereotypeComponent != null) {
-            beanName = stereotypeComponent.value();
-        } else {
-            throw new RuntimeException("No @Component annotation found on class: " + clazz.getName());
+        // 检查 @Service 注解
+        Service serviceAnn = clazz.getAnnotation(Service.class);
+        if (serviceAnn != null) {
+            beanName = serviceAnn.value();
         }
         
-        if (beanName.isEmpty()) {
-            // 如果没有指定bean名称，使用类名首字母小写作为bean名称
+        // 检查 @Repository 注解
+        if (beanName == null || beanName.isEmpty()) {
+            Repository repositoryAnn = clazz.getAnnotation(Repository.class);
+            if (repositoryAnn != null) {
+                beanName = repositoryAnn.value();
+            }
+        }
+        
+        // 检查 @Component 注解
+        if (beanName == null || beanName.isEmpty()) {
+            Component componentAnn = clazz.getAnnotation(Component.class);
+            if (componentAnn != null) {
+                beanName = componentAnn.value();
+            }
+        }
+        
+        // 如果没有指定bean名称，使用类名首字母小写作为bean名称
+        if (beanName == null || beanName.isEmpty()) {
             beanName = Character.toLowerCase(clazz.getSimpleName().charAt(0)) + 
                       clazz.getSimpleName().substring(1);
         }
         
-        // 创建BeanDefinition
+        System.out.println("Registering bean with name: " + beanName); // 添加日志
+        
+        // 创建并注册BeanDefinition
         BeanDefinition bd = new BeanDefinition() {
             private boolean lazyInit = false;
             private String initMethodName;
@@ -197,8 +227,6 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 this.lazyInit = lazyInit;
             }
         };
-        
-        // 注册BeanDefinition
         beanFactory.registerBeanDefinition(beanName, bd);
     }
 
