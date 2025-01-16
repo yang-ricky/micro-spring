@@ -93,6 +93,20 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @Override
     public Object getBean(String name) {
+        BeanDefinition bd = beanFactory.getBeanDefinition(name);
+        
+        // 对于单例，先检查缓存
+        if (bd.isSingleton()) {
+            if (((DefaultBeanFactory)beanFactory).containsSingleton(name)) {
+                return beanFactory.getBean(name);
+            }
+            // 如果缓存中没有，创建并注入依赖
+            Object bean = beanFactory.getBean(name);
+            injectDependencies(bean);
+            return bean;
+        }
+        
+        // 对于非单例，每次都创建新实例并注入依赖
         Object bean = beanFactory.getBean(name);
         injectDependencies(bean);
         return bean;
@@ -272,24 +286,22 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         
         for (String beanName : beanNames) {
             BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
-            if (bd.isLazyInit()) {
-                continue;
+            if (!bd.isLazyInit()) {
+                // 统一使用 getBean 方法
+                result.put(beanName, getBean(beanName));
             }
-            Object bean = getBean(beanName);
-            result.put(beanName, bean);
         }
-        
         return result;
     }
 
     public Map<String, Object> getAllBeansWithAnnotation(Class<? extends Annotation> annotationType) {
         Map<String, Object> result = new HashMap<>();
-        Set<String> beanNames = getBeanFactory().getBeanDefinitionNames();
-
-        for (String beanName : beanNames) {
-            Object bean = getBean(beanName);
-           if (bean.getClass().isAnnotationPresent(annotationType)) {
-                result.put(beanName, bean);
+        
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            if (bd.getBeanClass().isAnnotationPresent(annotationType)) {
+                // 统一使用 getBean 方法
+                result.put(beanName, getBean(beanName));
             }
         }
         return result;

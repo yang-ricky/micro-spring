@@ -13,6 +13,8 @@ import org.microspring.context.event.EventListenerMethodProcessor;
 import org.microspring.context.event.SimpleApplicationEventPublisher;
 import org.microspring.stereotype.Service;
 import org.microspring.stereotype.Repository;
+import org.microspring.context.scope.ScopeManager;
+import org.microspring.context.scope.ObjectFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,9 +22,12 @@ import java.io.File;
 import java.net.URL;
 import java.util.Enumeration;
 import java.io.IOException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 public class AnnotationConfigApplicationContext extends AbstractApplicationContext {
     private String basePackage;
+    private final ScopeManager scopeManager = new ScopeManager();
     
     public AnnotationConfigApplicationContext() {
         super();
@@ -239,5 +244,34 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     // 添加这个方法以支持测试用例
     public DefaultBeanFactory getBeanFactory() {
         return this.beanFactory;
+    }
+
+    @Override
+    public Object getBean(String name) {
+        BeanDefinition bd = beanFactory.getBeanDefinition(name);
+        String scope = bd.getScope();
+        
+        // 对于 request 作用域
+        if (Scope.REQUEST.equals(scope)) {
+            HttpServletRequest request = scopeManager.getCurrentRequest();
+            if (request != null) {
+                return scopeManager.getBean(name, scope, (ObjectFactory) () -> super.getBean(name));
+            }
+        }
+        
+        // 对于 session 作用域
+        if (Scope.SESSION.equals(scope)) {
+            HttpSession session = scopeManager.getCurrentSession();
+            if (session != null) {
+                return scopeManager.getBean(name, scope, (ObjectFactory) () -> super.getBean(name));
+            }
+        }
+        
+        // 其他作用域使用父类的 getBean 方法
+        return super.getBean(name);
+    }
+
+    public ScopeManager getScopeManager() {
+        return this.scopeManager;
     }
 } 

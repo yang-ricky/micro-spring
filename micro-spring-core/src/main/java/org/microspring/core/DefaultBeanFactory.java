@@ -42,7 +42,25 @@ public class DefaultBeanFactory implements BeanFactory {
 
     @Override
     public Object getBean(String name) {
-        return doGetBean(name, null);
+        BeanDefinition bd = getBeanDefinition(name);
+        if (bd == null) {
+            throw new NoSuchBeanDefinitionException(name);
+        }
+        
+        if (bd.isSingleton()) {
+            // 对于单例，先检查缓存
+            Object singleton = singletonObjects.get(name);
+            if (singleton != null) {
+                return singleton;
+            }
+            // 如果缓存中没有，创建并缓存
+            singleton = createBean(name, bd);
+            singletonObjects.put(name, singleton);
+            return singleton;
+        }
+        
+        // 非单例(原型)每次都创建新的
+        return createBean(name, bd);
     }
 
     @Override
@@ -101,7 +119,7 @@ public class DefaultBeanFactory implements BeanFactory {
     /**
      * 核心：创建Bean的完整流程
      */
-    protected Object createBean(String beanName, BeanDefinition bd) {
+    public Object createBean(String beanName, BeanDefinition bd) {
         singletonsCurrentlyInCreation.add(beanName);
         try {
             // 1. 实例化原始对象
@@ -584,5 +602,9 @@ public class DefaultBeanFactory implements BeanFactory {
             }
         }
         return result.toArray(new String[0]);
+    }
+
+    public boolean containsSingleton(String name) {
+        return singletonObjects.containsKey(name);
     }
 } 

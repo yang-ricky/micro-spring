@@ -105,6 +105,46 @@ public class AnnotationConfigApplicationContextTest {
         }
     }
     
+    @Component
+    @Scope("singleton")
+    public static class TestSingletonBean {
+        private int count = 0;
+        public int increment() {
+            return ++count;
+        }
+    }
+    
+    @Component
+    @Scope("prototype")
+    public static class TestPrototypeBean {
+        private int count = 0;
+        public int increment() {
+            return ++count;
+        }
+    }
+    
+    @Component
+    @Scope("singleton")
+    public static class SingletonWithPrototype {
+        @Autowired
+        private TestPrototypeBean prototypeBean;
+        
+        public int getPrototypeCount() {
+            return prototypeBean.increment();
+        }
+    }
+    
+    @Component
+    @Scope("prototype")
+    public static class PrototypeWithSingleton {
+        @Autowired
+        private TestSingletonBean singletonBean;
+        
+        public int getSingletonCount() {
+            return singletonBean.increment();
+        }
+    }
+    
     @Test
     public void testAnnotationBasedContainer() {
         AnnotationConfigApplicationContext context = 
@@ -160,6 +200,54 @@ public class AnnotationConfigApplicationContextTest {
                     "From B: Hello from ServiceA, " + 
                     "Specific: Hello from Specific ServiceA", 
                     methodService.getMessages());
+    }
+
+    @Test
+    public void testScopeAnnotations() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.context");
+        
+        // 测试单例 bean
+        TestSingletonBean singleton1 = (TestSingletonBean) context.getBean("testSingletonBean");
+        TestSingletonBean singleton2 = (TestSingletonBean) context.getBean("testSingletonBean");
+        
+        assertEquals(1, singleton1.increment());
+        assertEquals(2, singleton2.increment());  // 同一个实例，计数继续增加
+        assertSame(singleton1, singleton2);  // 应该是同一个实例
+        
+        // 测试原型 bean
+        TestPrototypeBean prototype1 = (TestPrototypeBean) context.getBean("testPrototypeBean");
+        TestPrototypeBean prototype2 = (TestPrototypeBean) context.getBean("testPrototypeBean");
+        
+        assertEquals(1, prototype1.increment());
+        assertEquals(1, prototype2.increment());  // 新实例，计数从1开始
+        assertNotSame(prototype1, prototype2);  // 应该是不同的实例
+    }
+
+    @Test
+    public void testSingletonWithPrototypeDependency() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.context");
+        
+        SingletonWithPrototype singleton1 = (SingletonWithPrototype) context.getBean("singletonWithPrototype");
+        SingletonWithPrototype singleton2 = (SingletonWithPrototype) context.getBean("singletonWithPrototype");
+        
+        assertEquals(1, singleton1.getPrototypeCount());
+        assertEquals(2, singleton2.getPrototypeCount());
+        assertSame(singleton1, singleton2);
+    }
+
+    @Test
+    public void testPrototypeWithSingletonDependency() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.context");
+        
+        PrototypeWithSingleton prototype1 = (PrototypeWithSingleton) context.getBean("prototypeWithSingleton");
+        PrototypeWithSingleton prototype2 = (PrototypeWithSingleton) context.getBean("prototypeWithSingleton");
+        
+        assertEquals(1, prototype1.getSingletonCount());
+        assertEquals(2, prototype2.getSingletonCount());
+        assertNotSame(prototype1, prototype2);
     }
 
     // todo: 测试循环依赖
