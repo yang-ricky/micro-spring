@@ -9,4 +9,8 @@
     </bean>
 
     <bean class="org.microspring.jdbc.DataSourcePostProcessor"/>
+    
+    <bean id="jdbcTemplate" class="org.microspring.jdbc.JdbcTemplate">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
 </beans>

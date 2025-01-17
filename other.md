@@ -104,16 +104,16 @@
 ### 任务16.2：创建简易版 JDBC Template 工具类
 **场景**：简化 JDBC 常规操作（增删改查）
 
-- [x] **定义 `JdbcTemplate`** 类  
+- [ ] **定义 `JdbcTemplate`** 类  
   - 持有 `DataSource`  
   - 封装常见的 `executeUpdate(sql, params...)` / `executeQuery(sql, rowMapper, params...)` 等方法  
   - 内部要处理 `Connection → PreparedStatement → ResultSet → 关闭` 流程
 
-- [x] **注入 `JdbcTemplate`**  
+- [ ] **注入 `JdbcTemplate`**  
   - 通过 IoC 容器，`JdbcTemplate` 构造器或 Setter 注入 `dataSource`  
   - 在 XML / 注解中声明 `JdbcTemplate` Bean，让容器自动装配
 
-- [x] **RowMapper 机制**  
+- [ ] **RowMapper 机制**  
   - 定义 `RowMapper<T>` 接口，`T mapRow(ResultSet rs, int rowNum)`  
   - 业务层通过实现 `RowMapper` 将结果集转换为对象
 
