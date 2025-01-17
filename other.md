@@ -85,12 +85,12 @@
 ### 任务16.1：引入 DataSource 并手动配置
 **场景**：在 XML 或注解中声明数据库连接参数，并在容器启动时创建一个 DataSource
 
-- [x] **定义 `DataSource` Bean**  
+- [ ] **定义 `DataSource` Bean**  
   - 可以使用最简单的 `DriverManagerDataSource`（自行编写或参考 Spring 同名类），持有：  
     - `url`, `username`, `password`, `driverClassName` 等属性  
   - 在 `BeanFactory` / `ApplicationContext` 初始化时，加载并创建这个数据源实例
 
-- [x] **连接测试**  
+- [ ] **连接测试**  
   - 在初始化完成后，用 `DataSource.getConnection()` 简单测试能否成功连接数据库  
   - 如果失败，抛出异常或打印错误日志，提示连接信息
 

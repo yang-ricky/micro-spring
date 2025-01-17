@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <bean id="dataSource" class="org.microspring.jdbc.DriverManagerDataSource" init-method="init">
+        <property name="driverClassName" value="org.h2.Driver"/>
+        <property name="url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
+        <property name="username" value="sa"/>
+        <property name="password" value=""/>
+        <property name="loginTimeout" value="5"/>
+    </bean>
+
+    <bean class="org.microspring.jdbc.DataSourcePostProcessor"/>
+</beans>

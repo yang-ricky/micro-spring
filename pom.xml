@@ -23,6 +23,7 @@
         <module>micro-spring-context</module>
         <module>micro-spring-aop</module>
         <module>micro-spring-web</module>
+        <module>micro-spring-jdbc</module>
     </modules>
 
     <properties>
