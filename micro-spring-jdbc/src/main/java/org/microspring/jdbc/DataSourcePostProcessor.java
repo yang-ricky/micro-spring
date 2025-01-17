@@ -28,8 +28,6 @@ public class DataSourcePostProcessor implements BeanPostProcessor {
         
         for (int attempt = 1; attempt <= MAX_RETRY; attempt++) {
             try (Connection conn = dataSource.getConnection()) {
-                System.out.println("[INFO] DataSource connected successfully: " + beanName + 
-                                 " (attempt " + attempt + " of " + MAX_RETRY + ")");
                 return; // 连接成功，直接返回
             } catch (SQLException e) {
                 lastException = e;

@@ -55,19 +55,17 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             System.out.println("Scanning package: " + basePackage);
             scanPackages(basePackage);
             
-            // 2. 只初始化非延迟加载的单例bean
+            // 2. 注册 BeanPostProcessor 和监听器
+            super.refresh();
+            
+            // 3. 只初始化非延迟加载的单例bean
             for (String beanName : beanFactory.getBeanDefinitionNames()) {
-                System.out.println("Found bean: " + beanName);
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
                 if (bd.isSingleton() && !bd.isLazyInit()) {
                     getBean(beanName);
                 }
             }
         }
-
-        // 3. 注册监听器
-        System.out.println("Registering listeners");
-        registerListeners();
         
         // 4. 发布刷新完成事件
         publishEvent(new ContextRefreshedEvent(this));
@@ -107,14 +105,12 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                     try {
                         String className = basePackage + "." + 
                             file.getName().substring(0, file.getName().length() - 6);
-                        System.out.println("Scanning class: " + className);
                         Class<?> clazz = Class.forName(className);
                         
                         // 检查是否有构造型注解
                         if (clazz.isAnnotationPresent(Component.class) ||
                             clazz.isAnnotationPresent(Service.class) ||
                             clazz.isAnnotationPresent(Repository.class)) {
-                            System.out.println("Found annotated class: " + className);
                             registerBean(clazz);
                         }
                     } catch (ClassNotFoundException | NoClassDefFoundError e) {
@@ -157,8 +153,6 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             beanName = Character.toLowerCase(clazz.getSimpleName().charAt(0)) + 
                       clazz.getSimpleName().substring(1);
         }
-        
-        System.out.println("Registering bean with name: " + beanName); // 添加日志
         
         // 创建并注册BeanDefinition
         BeanDefinition bd = new BeanDefinition() {

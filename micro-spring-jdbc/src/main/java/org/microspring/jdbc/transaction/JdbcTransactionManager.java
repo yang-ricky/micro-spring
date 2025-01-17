@@ -13,10 +13,12 @@ import java.sql.Savepoint;
 
 public class JdbcTransactionManager extends AbstractPlatformTransactionManager {
     
+    private final DataSource dataSource;
     private final ThreadLocal<ConnectionHolder> connectionHolder = new ThreadLocal<>();
     
     public JdbcTransactionManager(DataSource dataSource) {
         super(dataSource);
+        this.dataSource = dataSource;
     }
     
     @Override
@@ -61,6 +63,8 @@ public class JdbcTransactionManager extends AbstractPlatformTransactionManager {
         ConnectionHolder holder = (ConnectionHolder) status.getTransaction();
         if (holder != null && holder.isTransactionActive()) {
             holder.getConnection().commit();
+            holder.setTransactionActive(false);
+            connectionHolder.remove();
         }
     }
     
@@ -69,6 +73,8 @@ public class JdbcTransactionManager extends AbstractPlatformTransactionManager {
         ConnectionHolder holder = (ConnectionHolder) status.getTransaction();
         if (holder != null && holder.isTransactionActive()) {
             holder.getConnection().rollback();
+            holder.setTransactionActive(false);
+            connectionHolder.remove();
         }
     }
     

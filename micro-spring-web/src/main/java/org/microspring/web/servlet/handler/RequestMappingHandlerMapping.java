@@ -96,8 +96,6 @@ public class RequestMappingHandlerMapping implements HandlerMapping {
                     RequestMappingInfo mappingInfo = new RequestMappingInfo(fullUrl, methods);
                     
                     handlerMethods.put(mappingInfo, new HandlerMethod(controller, method));
-                    System.out.println("[HandlerMapping] Mapped " + mappingInfo + 
-                        " -> " + controllerClass.getSimpleName() + "." + method.getName());
                 }
             }
         }

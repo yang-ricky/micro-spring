@@ -36,10 +36,7 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
 
     @Override
     public void multicastEvent(final ApplicationEvent event) {
-        System.out.println("\n=== Multicasting event: " + event.getClass().getSimpleName() + " ===");
         List<ApplicationListener<?>> listeners = getApplicationListeners(event);
-        System.out.println("Total listeners: " + applicationListeners.size());
-        System.out.println("Matching listeners: " + listeners.size());
         
         for (ApplicationListener<?> listener : listeners) {
             System.out.println("\nProcessing listener: " + listener.getClass().getSimpleName());
@@ -90,17 +87,13 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
                 System.out.println("Listener does not support event, skipping");
             }
         } catch (Exception e) {
-            System.err.println("Error invoking listener: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Failed to invoke event listener", e);
         }
     }
 
     protected boolean supportsEvent(ApplicationListener<?> listener, ApplicationEvent event) {
-        System.out.println("\nChecking if listener " + listener.getClass().getSimpleName() + 
-                          " supports event " + event.getClass().getSimpleName());
         Class<?> eventType = getEventType(listener);
-        System.out.println("Listener event type: " + eventType);
 
         if (eventType == null) {
             System.out.println("No event type found for listener, returning false");
@@ -108,11 +101,8 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
         }
 
         boolean supports = eventType.isAssignableFrom(event.getClass());
-        System.out.println("Checking if " + event.getClass() + " is assignable to " + eventType);
-        System.out.println("Supports event: " + supports);
         
         if (supports) {
-            System.out.println("Event class hierarchy:");
             Class<?> currentClass = event.getClass();
             while (currentClass != null) {
                 System.out.println(" - " + currentClass.getName());
@@ -124,9 +114,7 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
     }
 
     protected Class<?> getEventType(ApplicationListener<?> listener) {
-        System.out.println("\nGetting event type for listener: " + listener.getClass().getSimpleName());
         Type[] genericInterfaces = listener.getClass().getGenericInterfaces();
-        System.out.println("Generic interfaces: " + Arrays.toString(genericInterfaces));
         
         for (Type type : genericInterfaces) {
             if (type instanceof ParameterizedType) {

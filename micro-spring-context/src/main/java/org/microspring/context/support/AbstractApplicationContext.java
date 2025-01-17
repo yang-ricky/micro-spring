@@ -18,6 +18,7 @@ import org.microspring.context.event.ApplicationEventMulticaster;
 import org.microspring.context.event.SimpleApplicationEventMulticaster;
 import org.microspring.context.event.EventListenerMethodProcessor;
 import org.microspring.context.event.SmartApplicationListener;
+import org.microspring.core.BeanPostProcessor;
 
 import java.util.List;
 import java.lang.reflect.Field;
@@ -33,6 +34,7 @@ import java.lang.reflect.Type;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
 
 public abstract class AbstractApplicationContext implements ApplicationContext {
     protected final DefaultBeanFactory beanFactory;
@@ -313,6 +315,8 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @Override
     public void refresh() {
+        // 添加调试日志
+        registerBeanPostProcessors(beanFactory);
         
         // 注册监听器
         registerListeners();
@@ -329,33 +333,16 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @Override
     public void publishEvent(ApplicationEvent event) {
-        System.out.println("\n=== Publishing event ===");
-        System.out.println("Event type: " + event.getClass().getSimpleName());
-        System.out.println("Event source: " + event.getSource().getClass().getSimpleName());
-        System.out.println("Publishing container: " + this.getClass().getSimpleName());
-        System.out.println("Has parent: " + (parent != null));
         
         List<ApplicationListener<?>> currentListeners = getApplicationListeners(event);
-        System.out.println("Found " + currentListeners.size() + " listeners in current container");
-        
-        // 打印所有已注册的监听器
-        System.out.println("All registered listeners: ");
-        for (ApplicationListener<?> l : applicationListeners) {
-            System.out.println(" - " + l.getClass().getSimpleName());
-        }
         
         for (ApplicationListener<?> listener : currentListeners) {
-            System.out.println("Invoking listener: " + listener.getClass().getSimpleName());
             invokeListener(listener, event);
         }
         
         if (parent != null) {
-            System.out.println("Propagating event to parent container");
             parent.publishEvent(event);
-        } else {
-            System.out.println("No parent container to propagate event to");
-        }
-        System.out.println("=== Event publishing completed ===\n");
+        } 
     }
     
     @SuppressWarnings("unchecked")
@@ -397,18 +384,11 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         }
     }
     
-    private List<ApplicationListener<?>> getApplicationListeners(ApplicationEvent event) {
-        System.out.println("\nGetting application listeners for event: " + event.getClass().getSimpleName());
-        System.out.println("Total registered listeners: " + applicationListeners.size());
-        
+    private List<ApplicationListener<?>> getApplicationListeners(ApplicationEvent event) {        
         List<ApplicationListener<?>> allListeners = new ArrayList<>();
         for (ApplicationListener<?> listener : applicationListeners) {
-            System.out.println("Checking listener: " + listener.getClass().getSimpleName());
             if (supportsEvent(listener, event)) {
-                System.out.println("Listener supports event, adding to list");
                 allListeners.add(listener);
-            } else {
-                System.out.println("Listener does not support event");
             }
         }
         
@@ -419,13 +399,10 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             return Integer.compare(p1, p2);
         });
         
-        System.out.println("Found " + allListeners.size() + " matching listeners");
         return allListeners;
     }
     
     private boolean supportsEvent(ApplicationListener<?> listener, ApplicationEvent event) {
-        System.out.println("\nChecking if listener " + listener.getClass().getSimpleName() + 
-                          " supports event " + event.getClass().getSimpleName());
         
         // 如果是SmartApplicationListener，使用其自定义的类型检查逻辑
         if (listener instanceof SmartApplicationListener) {
@@ -436,8 +413,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
 
         // 获取监听器的泛型类型
         Class<?> eventType = getEventType(listener);
-        System.out.println("Listener event type: " + eventType);
-        System.out.println("Event class: " + event.getClass());
         
         // 检查事件类型的继承关系
         Class<?> currentClass = event.getClass();
@@ -447,7 +422,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         
         // 检查事件是否是监听器要监听的类型或其子类
         boolean supports = eventType != null && eventType.isAssignableFrom(event.getClass());
-        System.out.println("Supports event: " + supports);
         
         return supports;
     }
@@ -456,7 +430,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
      * 获取监听器的事件泛型类型
      */
     private Class<?> getEventType(ApplicationListener<?> listener) {
-        System.out.println("\nGetting event type for listener: " + listener.getClass().getSimpleName());
         
         // SmartApplicationListener 不需要获取泛型类型
         if (listener instanceof SmartApplicationListener) {
@@ -473,7 +446,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                     if (typeArguments != null && typeArguments.length > 0) {
                         Type typeArgument = typeArguments[0];
                         if (typeArgument instanceof Class) {
-                            System.out.println("Found event type from interface: " + typeArgument);
                             return (Class<?>) typeArgument;
                         }
                     }
@@ -489,7 +461,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             if (typeArguments != null && typeArguments.length > 0) {
                 Type typeArgument = typeArguments[0];
                 if (typeArgument instanceof Class) {
-                    System.out.println("Found event type from superclass: " + typeArgument);
                     return (Class<?>) typeArgument;
                 }
             }
@@ -531,5 +502,14 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         }
         Order order = listener.getClass().getAnnotation(Order.class);
         return order != null ? order.value() : Integer.MAX_VALUE;
+    }
+    
+    protected void registerBeanPostProcessors(DefaultBeanFactory beanFactory) {
+        String[] postProcessorNames = getBeanNamesForType(BeanPostProcessor.class);
+        
+        for (String ppName : postProcessorNames) {
+            BeanPostProcessor pp = (BeanPostProcessor) beanFactory.getBean(ppName);
+            beanFactory.addBeanPostProcessor(pp);
+        }
     }
 } 

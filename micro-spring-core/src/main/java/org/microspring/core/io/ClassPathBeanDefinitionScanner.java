@@ -79,8 +79,6 @@ public class ClassPathBeanDefinitionScanner {
                         try {
                             Condition condition = conditionClass.getDeclaredConstructor().newInstance();
                             if (!condition.matches(conditionContext)) {
-                                System.out.println("[INFO] Bean " + clazz.getSimpleName() + 
-                                    " is skipped due to condition: " + conditionClass.getSimpleName());
                                 shouldRegister = false;
                                 break;
                             }

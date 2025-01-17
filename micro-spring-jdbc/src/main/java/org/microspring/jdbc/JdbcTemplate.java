@@ -40,20 +40,29 @@ public class JdbcTemplate {
     /**
      * 执行更新操作（INSERT、UPDATE、DELETE）
      */
-    public int executeUpdate(String sql, Object... params) throws SQLException {
-        Connection conn = getConnection();
+    public int executeUpdate(String sql, Object... args) throws SQLException {
+        Connection conn = null;
         try {
+            // 优先使用事务的 Connection
+            if (transactionManager != null && transactionManager.hasCurrentConnection()) {
+                conn = transactionManager.getCurrentConnection();
+            } else {
+                conn = dataSource.getConnection();
+            }
             PreparedStatement ps = conn.prepareStatement(sql);
             try {
-                for (int i = 0; i < params.length; i++) {
-                    ps.setObject(i + 1, params[i]);
+                for (int i = 0; i < args.length; i++) {
+                    ps.setObject(i + 1, args[i]);
                 }
                 return ps.executeUpdate();
             } finally {
                 ps.close();
             }
         } finally {
-            releaseConnection(conn);
+            // 只有非事务的 Connection 才需要关闭
+            if (conn != null && (transactionManager == null || !transactionManager.hasCurrentConnection())) {
+                conn.close();
+            }
         }
     }
     
@@ -75,8 +84,16 @@ public class JdbcTemplate {
      * 查询对象列表
      */
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... params) throws SQLException {
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        try {
+            // 优先使用事务的 Connection
+            if (transactionManager != null && transactionManager.hasCurrentConnection()) {
+                conn = transactionManager.getCurrentConnection();
+            } else {
+                conn = dataSource.getConnection();
+            }
+            ps = conn.prepareStatement(sql);
             
             // 设置参数
             for (int i = 0; i < params.length; i++) {
@@ -90,6 +107,14 @@ public class JdbcTemplate {
                     results.add(rowMapper.mapRow(rs, rowNum++));
                 }
                 return results;
+            }
+        } finally {
+            if (ps != null) {
+                ps.close();
+            }
+            // 只有非事务的 Connection 才需要关闭
+            if (conn != null && (transactionManager == null || !transactionManager.hasCurrentConnection())) {
+                conn.close();
             }
         }
     }

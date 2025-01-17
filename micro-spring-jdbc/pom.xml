@@ -49,5 +49,26 @@
             <version>2.1.214</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- 添加 AOP 依赖 -->
+        <dependency>
+            <groupId>org.microspring</groupId>
+            <artifactId>micro-spring-aop</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <!-- 添加 core 依赖，包含 BeanPostProcessor -->
+        <dependency>
+            <groupId>org.microspring</groupId>
+            <artifactId>micro-spring-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <!-- 添加 context 依赖，用于 XML 配置 -->
+        <dependency>
+            <groupId>org.microspring</groupId>
+            <artifactId>micro-spring-context</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project> 
