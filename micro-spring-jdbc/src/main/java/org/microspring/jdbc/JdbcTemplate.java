@@ -1,5 +1,6 @@
 package org.microspring.jdbc;
 
+import org.microspring.jdbc.transaction.JdbcTransactionManager;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,24 +14,46 @@ import java.util.List;
 public class JdbcTemplate {
     
     private DataSource dataSource;
+    private JdbcTransactionManager transactionManager;
     
     public void setDataSource(DataSource dataSource) {
         this.dataSource = dataSource;
+    }
+    
+    public void setTransactionManager(JdbcTransactionManager transactionManager) {
+        this.transactionManager = transactionManager;
+    }
+    
+    protected Connection getConnection() throws SQLException {
+        if (transactionManager != null && transactionManager.hasCurrentConnection()) {
+            return transactionManager.getCurrentConnection();
+        }
+        return dataSource.getConnection();
+    }
+    
+    protected void releaseConnection(Connection conn) throws SQLException {
+        if (transactionManager == null || !transactionManager.hasCurrentConnection()) {
+            conn.close();  // 只在非事务连接时关闭
+        }
     }
     
     /**
      * 执行更新操作（INSERT、UPDATE、DELETE）
      */
     public int executeUpdate(String sql, Object... params) throws SQLException {
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            
-            // 设置参数
-            for (int i = 0; i < params.length; i++) {
-                ps.setObject(i + 1, params[i]);
+        Connection conn = getConnection();
+        try {
+            PreparedStatement ps = conn.prepareStatement(sql);
+            try {
+                for (int i = 0; i < params.length; i++) {
+                    ps.setObject(i + 1, params[i]);
+                }
+                return ps.executeUpdate();
+            } finally {
+                ps.close();
             }
-            
-            return ps.executeUpdate();
+        } finally {
+            releaseConnection(conn);
         }
     }
     
@@ -52,7 +75,7 @@ public class JdbcTemplate {
      * 查询对象列表
      */
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... params) throws SQLException {
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
             // 设置参数

@@ -127,10 +127,10 @@
 ### 任务16.3：事务管理（可选简单版本）
 **场景**：在数据库操作中，如果有多条 SQL，需要保证他们在一个事务中执行
 
-- [x] **定义 `TransactionManager`**  
+- [ ] **定义 `TransactionManager`**  
   - 可用最简单的 JDBC 事务：`conn.setAutoCommit(false); conn.commit(); conn.rollback();`
 
-- [x] **AOP + 注解方式**（或手动方式）  
+- [ ] **AOP + 注解方式**（或手动方式）  
   - 可以先用手动方式：在业务方法里拿到 `TransactionManager`，调用 `begin`、`commit`、`rollback`  
   - 若想集成 AOP + `@Transactional`，可扩展 `BeanPostProcessor` 生成代理
 
@@ -144,11 +144,11 @@
 ### 任务16.4：容错与连接池（可选进阶）
 **场景**：如果数据库连接不稳定，需要重试；或者通过连接池提高效率
 
-- [x] **连接重试**  
+- [ ] **连接重试**  
   - 如果连接失败，尝试 X 次重试  
   - 记录或报警，以排查网络问题
 
-- [x] **使用连接池**  
+- [ ] **使用连接池**  
   - 简易实现或引入第三方连接池（如 HikariCP、Druid）  
   - 在 `dataSource` Bean 中初始化连接池参数
 

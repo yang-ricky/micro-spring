@@ -12,5 +12,15 @@
     
     <bean id="jdbcTemplate" class="org.microspring.jdbc.JdbcTemplate">
         <property name="dataSource" ref="dataSource"/>
+        <property name="transactionManager" ref="transactionManager"/>
+    </bean>
+    
+    <bean id="transactionManager" class="org.microspring.jdbc.transaction.JdbcTransactionManager">
+        <constructor-arg ref="dataSource"/>
+    </bean>
+    
+    <bean id="userService" class="org.microspring.jdbc.UserService">
+        <constructor-arg ref="jdbcTemplate"/>
+        <constructor-arg ref="transactionManager"/>
     </bean>
 </beans>

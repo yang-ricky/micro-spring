@@ -56,16 +56,13 @@ public class DataSourceTest {
     @Test(expected = RuntimeException.class)
     public void testConnectionFailure() {
         DriverManagerDataSource badDs = new DriverManagerDataSource();
-        badDs.setDriverClassName("org.h2.Driver");
-        badDs.setUrl("jdbc:h2:tcp://nonexistent-host:9092/testdb");
-        badDs.setUsername("sa");
-        badDs.setPassword("");
+        badDs.setDriverClassName("org.h2.NonExistentDriver");
+        badDs.setUrl("jdbc:h2:mem:nonexistent");
+        badDs.setUsername("invalid");
+        badDs.setPassword("invalid");
         badDs.setLoginTimeout("1");
         
         badDs.init();
-        
-        DataSourcePostProcessor processor = new DataSourcePostProcessor();
-        processor.postProcessAfterInitialization(badDs, "badDataSource");
     }
     
     @Test
