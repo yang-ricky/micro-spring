@@ -48,8 +48,9 @@ public class DefaultTransactionStatus implements TransactionStatus {
         this.completed = true;
     }
     
+    @Override
     public Object getTransaction() {
-        return transaction;
+        return this.transaction;
     }
     
     public void setSavepoint(Savepoint savepoint) {

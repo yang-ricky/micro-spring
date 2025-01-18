@@ -2,6 +2,8 @@ package org.microspring.jdbc.transaction;
 
 import org.microspring.jdbc.DataSource;
 import org.microspring.transaction.TransactionDefinition;
+import org.microspring.transaction.TransactionStatus;
+import org.microspring.transaction.IllegalTransactionStateException;
 import org.microspring.transaction.support.AbstractPlatformTransactionManager;
 import org.microspring.transaction.support.DefaultTransactionStatus;
 import org.microspring.transaction.support.TransactionSynchronizationManager;
@@ -65,6 +67,7 @@ public class JdbcTransactionManager extends AbstractPlatformTransactionManager {
             holder.getConnection().commit();
             holder.setTransactionActive(false);
             connectionHolder.remove();
+            status.setCompleted();
         }
     }
     
@@ -79,21 +82,27 @@ public class JdbcTransactionManager extends AbstractPlatformTransactionManager {
     }
     
     @Override
-    protected Savepoint createSavepoint(Object transaction) throws SQLException {
-        ConnectionHolder holder = (ConnectionHolder) transaction;
+    public Savepoint createSavepoint(TransactionStatus status) throws SQLException {
+        if (status.isCompleted()) {
+            throw new IllegalTransactionStateException(
+                "Cannot create savepoint - transaction is already completed");
+        }
+        ConnectionHolder holder = (ConnectionHolder) status.getTransaction();
         return holder.getConnection().setSavepoint();
     }
     
     @Override
-    protected void rollbackToSavepoint(DefaultTransactionStatus status) throws SQLException {
-        Savepoint savepoint = status.getSavepoint();
+    public void rollbackToSavepoint(TransactionStatus status, Savepoint savepoint) throws SQLException {
+        if (status.isCompleted()) {
+            throw new IllegalTransactionStateException(
+                "Cannot rollback to savepoint - transaction is already completed");
+        }
         ConnectionHolder holder = (ConnectionHolder) status.getTransaction();
         holder.getConnection().rollback(savepoint);
     }
     
     @Override
-    protected void releaseSavepoint(DefaultTransactionStatus status) throws SQLException {
-        Savepoint savepoint = status.getSavepoint();
+    public void releaseSavepoint(TransactionStatus status, Savepoint savepoint) throws SQLException {
         if (savepoint != null) {
             ConnectionHolder holder = (ConnectionHolder) status.getTransaction();
             holder.getConnection().releaseSavepoint(savepoint);

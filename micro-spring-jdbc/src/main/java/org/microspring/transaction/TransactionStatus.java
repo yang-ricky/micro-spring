@@ -14,4 +14,6 @@ public interface TransactionStatus {
     boolean isRollbackOnly();
     
     boolean isCompleted();
+    
+    Object getTransaction();
 } 

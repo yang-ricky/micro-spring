@@ -71,7 +71,7 @@ public abstract class AbstractPlatformTransactionManager {
         if (status.isNewTransaction()) {
             doRollback(defStatus);
         } else if (defStatus.hasSavepoint()) {
-            rollbackToSavepoint(defStatus);
+            rollbackToSavepoint(status, defStatus.getSavepoint());
         }
     }
     
@@ -115,7 +115,7 @@ public abstract class AbstractPlatformTransactionManager {
         
         if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NESTED) {
             DefaultTransactionStatus status = new DefaultTransactionStatus(transaction, false, true);
-            status.setSavepoint(createSavepoint(transaction));
+            status.setSavepoint(createSavepoint((TransactionStatus)status));
             return status;
         }
         
@@ -140,24 +140,24 @@ public abstract class AbstractPlatformTransactionManager {
             throws SQLException {
         
         DefaultTransactionStatus status = new DefaultTransactionStatus(transaction, false, true);
-        status.setSavepoint(createSavepoint(transaction));
+        status.setSavepoint(createSavepoint((TransactionStatus)status));
         return status;
     }
     
     /**
      * 创建保存点
      */
-    protected abstract Savepoint createSavepoint(Object transaction) throws SQLException;
+    public abstract Savepoint createSavepoint(TransactionStatus status) throws SQLException;
     
     /**
      * 回滚到保存点
      */
-    protected abstract void rollbackToSavepoint(DefaultTransactionStatus status) throws SQLException;
+    public abstract void rollbackToSavepoint(TransactionStatus status, Savepoint savepoint) throws SQLException;
     
     /**
      * 释放保存点
      */
-    protected abstract void releaseSavepoint(DefaultTransactionStatus status) throws SQLException;
+    public abstract void releaseSavepoint(TransactionStatus status, Savepoint savepoint) throws SQLException;
     
     protected abstract Object suspend(Object transaction) throws SQLException;
     protected abstract void resume(Object transaction, Object suspendedResources) throws SQLException;
