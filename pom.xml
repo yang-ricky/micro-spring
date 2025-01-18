@@ -24,6 +24,7 @@
         <module>micro-spring-aop</module>
         <module>micro-spring-web</module>
         <module>micro-spring-jdbc</module>
+        <module>micro-spring-orm</module>
     </modules>
 
     <properties>
@@ -37,6 +38,11 @@
     <dependencyManagement>
         <dependencies>
             <!-- Internal dependencies -->
+            <dependency>
+                <groupId>org.microspring</groupId>
+                <artifactId>micro-spring-orm</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.microspring</groupId>
                 <artifactId>micro-spring-core</artifactId>

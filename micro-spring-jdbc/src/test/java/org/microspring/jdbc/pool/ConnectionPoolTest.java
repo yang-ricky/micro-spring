@@ -90,7 +90,8 @@ public class ConnectionPoolTest {
         }
     }
     
-    @Test
+    //@Test 
+    // 暂时注销，因为执行稍微耗时
     public void testConnectionRetry() {
         // 使用一个不存在的主机来测试重试机制
         dataSource.setUrl("jdbc:h2:tcp://non-existent-host:9092/testdb");

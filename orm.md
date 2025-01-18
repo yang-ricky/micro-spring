@@ -33,7 +33,7 @@
 #### 产出要求
 1. 在 `micro-spring-orm` 中，有一个核心配置类/组件能够读取 ORM 配置，并创建 `EntityManagerFactory` 或 `SessionFactory` 对象  
 2. 日志输出 “micro-spring-orm: EntityManagerFactory created successfully” 或类似提示  
-3. 在 `pom.xml`（或 build.gradle）中添加相应的依赖（Hibernate / JPA API），确保能编译运行
+3. 在 `pom.xml`中添加相应的依赖（Hibernate / JPA API），确保能编译运行
 
 ---
 
