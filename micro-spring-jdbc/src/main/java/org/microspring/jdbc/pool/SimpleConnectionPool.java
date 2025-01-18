@@ -122,8 +122,7 @@ public class SimpleConnectionPool implements ConnectionPool {
     }
     
     private Connection wrapConnection(final Connection connection) {
-        // 包装连接，使其在close时返回池中而不是真正关闭
-        return new ConnectionProxy(connection, this);
+        return ConnectionProxy.newProxy(connection, this);
     }
     
     @Override
