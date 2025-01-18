@@ -1,5 +1,6 @@
 package org.microspring.orm;
 
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.junit.Before;
 import org.junit.Test;
@@ -209,6 +210,81 @@ public class OrmTemplateTest {
             // 验证所有操作都被回滚
             User afterRollback = ormTemplate.get(User.class, 1L);
             assertEquals("Test User", afterRollback.getName());
+        }
+    }
+
+    @Test
+    public void testTransactionIsolation() {
+        // 准备初始数据
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+
+        // 使用 READ_COMMITTED 隔离级别
+        ormTemplate.executeInTransaction((template, session) -> {
+            // 直接使用 session 而不是 template
+            User found = session.get(User.class, 1L);
+            found.setName("Updated in Transaction 1");
+            session.update(found);
+
+            // 在同一个会话中验证更新是否可见
+            User inTransaction = session.get(User.class, 1L);
+            assertEquals("Updated in Transaction 1", inTransaction.getName());
+
+            // 在新会话中验证更新是否可见
+            Session newSession = session.getSessionFactory().openSession();
+            User fromNewSession = newSession.get(User.class, 1L);
+            assertEquals("Original Name", fromNewSession.getName());
+            newSession.close();
+            return null;
+        }, java.sql.Connection.TRANSACTION_READ_COMMITTED);
+
+        // 使用 SERIALIZABLE 隔离级别
+        ormTemplate.executeInTransaction((template, session) -> {
+            User found = session.get(User.class, 1L);
+            found.setName("Updated in Transaction 2");
+            session.update(found);
+            return null;
+        }, java.sql.Connection.TRANSACTION_SERIALIZABLE);
+    }
+
+    @Test
+    public void testNestedTransactions() {
+        // 准备初始数据
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+
+        try {
+            // 外层事务
+            ormTemplate.executeInTransaction((template1, session1) -> {
+                User outer = template1.get(User.class, 1L);
+                outer.setName("Updated in Outer");
+                session1.update(outer);
+
+                try {
+                    // 内层事务
+                    ormTemplate.executeInTransaction((template2, session2) -> {
+                        User inner = template2.get(User.class, 1L);
+                        inner.setName("Updated in Inner");
+                        session2.update(inner);
+                        throw new RuntimeException("Inner transaction rollback");
+                    });
+                    fail("Should throw exception from inner transaction");
+                } catch (RuntimeException e) {
+                    // 验证内层事务回滚后，外层事务的修改仍然存在
+                    User afterInner = template1.get(User.class, 1L);
+                    assertEquals("Updated in Outer", afterInner.getName());
+                }
+
+                return null;
+            });
+        } catch (RuntimeException e) {
+            // 验证所有修改都被回滚
+            User afterAll = ormTemplate.get(User.class, 1L);
+            assertEquals("Original Name", afterAll.getName());
         }
     }
 } 

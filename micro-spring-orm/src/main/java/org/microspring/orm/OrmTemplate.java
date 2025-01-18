@@ -96,9 +96,16 @@ public class OrmTemplate {
     }
 
     public <T> T executeInTransaction(TransactionCallback<T> action) {
+        return executeInTransaction(action, java.sql.Connection.TRANSACTION_READ_COMMITTED);
+    }
+
+    public <T> T executeInTransaction(TransactionCallback<T> action, int isolationLevel) {
         Session session = sessionFactory.getCurrentSession();
         Transaction tx = session.beginTransaction();
         try {
+            // 设置事务隔离级别
+            session.doWork(connection -> connection.setTransactionIsolation(isolationLevel));
+            
             T result = action.doInTransaction(this, session);
             tx.commit();
             return result;
