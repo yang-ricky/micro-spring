@@ -1,5 +1,6 @@
 package org.microspring.orm;
 
+import org.hibernate.FlushMode;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
@@ -95,15 +96,57 @@ public class OrmTemplate {
         }
     }
 
-    public <T> T executeInTransaction(TransactionCallback<T> action) {
-        return executeInTransaction(action, java.sql.Connection.TRANSACTION_READ_COMMITTED);
+    public enum PropagationBehavior {
+        REQUIRED,      // 如果当前没有事务，就新建一个事务；如果已经存在事务，就加入到这个事务中
+        REQUIRES_NEW,  // 无论是否存在事务，都创建新事务
+        SUPPORTS      // 如果当前存在事务，就加入该事务；如果当前没有事务，就以非事务执行
+    }
+
+    public <T> T executeInTransaction(TransactionCallback<T> action, PropagationBehavior propagation) {
+        return executeInTransaction(action, propagation, java.sql.Connection.TRANSACTION_READ_COMMITTED);
     }
 
     public <T> T executeInTransaction(TransactionCallback<T> action, int isolationLevel) {
+        return executeInTransaction(action, PropagationBehavior.REQUIRED, isolationLevel);
+    }
+
+    public <T> T executeInTransaction(TransactionCallback<T> action) {
+        return executeInTransaction(action, PropagationBehavior.REQUIRED, java.sql.Connection.TRANSACTION_READ_COMMITTED);
+    }
+
+    public <T> T executeInTransaction(TransactionCallback<T> action, PropagationBehavior propagation, int isolationLevel) {
         Session session = sessionFactory.getCurrentSession();
+        Transaction currentTx = session.getTransaction();
+        boolean isExistingTransaction = currentTx != null && currentTx.isActive();
+
+        switch (propagation) {
+            case REQUIRES_NEW:
+                if (isExistingTransaction) {
+                    currentTx.commit();
+                    T result = doInNewTransaction(action, session, isolationLevel);
+                    session.beginTransaction();
+                    return result;
+                }
+                return doInNewTransaction(action, session, isolationLevel);
+
+            case SUPPORTS:
+                if (isExistingTransaction) {
+                    return action.doInTransaction(this, session);
+                }
+                return doInNewTransaction(action, session, isolationLevel);
+
+            case REQUIRED:
+            default:
+                if (!isExistingTransaction) {
+                    return doInNewTransaction(action, session, isolationLevel);
+                }
+                return action.doInTransaction(this, session);
+        }
+    }
+
+    private <T> T doInNewTransaction(TransactionCallback<T> action, Session session, int isolationLevel) {
         Transaction tx = session.beginTransaction();
         try {
-            // 设置事务隔离级别
             session.doWork(connection -> connection.setTransactionIsolation(isolationLevel));
             
             T result = action.doInTransaction(this, session);

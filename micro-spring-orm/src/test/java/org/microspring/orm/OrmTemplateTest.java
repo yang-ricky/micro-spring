@@ -7,6 +7,7 @@ import org.junit.Test;
 import org.microspring.jdbc.DriverManagerDataSource;
 import org.microspring.jdbc.JdbcTemplate;
 import org.microspring.jdbc.transaction.JdbcTransactionManager;
+import org.microspring.orm.OrmTemplate.PropagationBehavior;
 import org.microspring.orm.config.OrmConfiguration;
 import org.microspring.orm.entity.User;
 
@@ -286,5 +287,103 @@ public class OrmTemplateTest {
             User afterAll = ormTemplate.get(User.class, 1L);
             assertEquals("Original Name", afterAll.getName());
         }
+    }
+
+    @Test
+    public void testTransactionPropagation_Required() {
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+
+        // 外层事务
+        ormTemplate.executeInTransaction((template1, session1) -> {
+            User outer = session1.get(User.class, 1L);
+            outer.setName("Updated in Outer");
+            session1.update(outer);
+
+            // 内层事务（REQUIRED）- 应该加入外层事务
+            ormTemplate.executeInTransaction((template2, session2) -> {
+                User inner = session2.get(User.class, 1L);
+                assertEquals("Updated in Outer", inner.getName()); // 可以看到外层事务的修改
+                inner.setName("Updated in Inner");
+                session2.update(inner);
+                return null;
+            }, PropagationBehavior.REQUIRED);
+
+            User afterInner = session1.get(User.class, 1L);
+            assertEquals("Updated in Inner", afterInner.getName()); // 内层事务的修改在外层可见
+            return null;
+        });
+    }
+
+    @Test
+    public void testTransactionPropagation_RequiresNew() {
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+
+        // 外层事务
+        try {
+            ormTemplate.executeInTransaction((template1, session1) -> {
+                User outer = session1.get(User.class, 1L);
+                outer.setName("Updated in Outer");
+                session1.update(outer);
+
+                // 内层事务（REQUIRES_NEW）- 应该创建新事务
+                try {
+                    ormTemplate.executeInTransaction((template2, session2) -> {
+                        User inner = session2.get(User.class, 1L);
+                        assertEquals("Original Name", inner.getName()); // 看不到外层事务的修改
+                        inner.setName("Updated in Inner");
+                        session2.update(inner);
+                        throw new RuntimeException("Inner transaction rollback");
+                    }, PropagationBehavior.REQUIRES_NEW);
+                } catch (RuntimeException e) {
+                    // 内层事务回滚不影响外层事务
+                    User afterInner = session1.get(User.class, 1L);
+                    assertEquals("Updated in Outer", afterInner.getName());
+                }
+
+                return null;
+            });
+        } catch (RuntimeException e) {
+            // 验证最终状态
+            User afterAll = ormTemplate.get(User.class, 1L);
+            assertEquals("Original Name", afterAll.getName());
+        }
+    }
+
+    @Test
+    public void testTransactionPropagation_Supports() {
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+
+        // 在事务中执行
+        ormTemplate.executeInTransaction((template1, session1) -> {
+            // SUPPORTS - 应该加入当前事务
+            ormTemplate.executeInTransaction((template2, session2) -> {
+                User found = session2.get(User.class, 1L);
+                found.setName("Updated with SUPPORTS");
+                session2.update(found);
+                return null;
+            }, PropagationBehavior.SUPPORTS);
+
+            // 验证修改在同一事务中可见
+            User updated = session1.get(User.class, 1L);
+            assertEquals("Updated with SUPPORTS", updated.getName());
+            return null;
+        });
+
+        // 在非事务中执行 - 使用 session 直接操作
+        ormTemplate.executeInTransaction((template, session) -> {
+            User found = session.get(User.class, 1L);
+            found.setName("Updated without Transaction");
+            session.update(found);
+            return null;
+        }, PropagationBehavior.SUPPORTS);
     }
 } 
