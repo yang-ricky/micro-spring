@@ -94,4 +94,24 @@ public class OrmTemplate {
             throw new RuntimeException("Failed to delete entity", e);
         }
     }
+
+    public <T> T executeInTransaction(TransactionCallback<T> action) {
+        Session session = sessionFactory.getCurrentSession();
+        Transaction tx = session.beginTransaction();
+        try {
+            T result = action.doInTransaction(this, session);
+            tx.commit();
+            return result;
+        } catch (Exception e) {
+            if (tx != null && tx.isActive()) {
+                tx.rollback();
+            }
+            throw new RuntimeException("Transaction failed", e);
+        }
+    }
+}
+
+@FunctionalInterface
+interface TransactionCallback<T> {
+    T doInTransaction(OrmTemplate template, Session session);
 } 

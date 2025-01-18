@@ -79,4 +79,136 @@ public class OrmTemplateTest {
         User deleted = ormTemplate.get(User.class, 1L);
         assertNull(deleted);
     }
+
+    @Test
+    public void testTransactionRollback() {
+        // 先保存一个用户
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+        
+        // 验证保存成功
+        User saved = ormTemplate.get(User.class, 1L);
+        assertNotNull(saved);
+        assertEquals("Original Name", saved.getName());
+        
+        try {
+            // 尝试用相同的ID保存另一个用户，这会触发异常
+            User duplicateUser = new User();
+            duplicateUser.setId(1L);  // 故意使用相同的ID
+            duplicateUser.setName("New Name");
+            ormTemplate.save(duplicateUser);
+            
+            fail("Should throw exception when saving duplicate ID");
+        } catch (RuntimeException e) {
+            // 预期会抛出异常
+            // 验证第一个用户仍然存在，且数据未被修改
+            User afterRollback = ormTemplate.get(User.class, 1L);
+            assertNotNull(afterRollback);
+            assertEquals("Original Name", afterRollback.getName());
+        }
+    }
+
+    @Test
+    public void testUpdateRollback() {
+        // 先保存一个用户
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+        
+        try {
+            ormTemplate.executeInTransaction((template, session) -> {
+                User toUpdate = template.get(User.class, 1L);
+                toUpdate.setName(null);
+                session.update(toUpdate);
+                return null;
+            });
+            fail("Should throw exception when updating with invalid data");
+        } catch (RuntimeException e) {
+            // 验证原始数据未被修改
+            User afterRollback = ormTemplate.get(User.class, 1L);
+            assertEquals("Original Name", afterRollback.getName());
+        }
+    }
+
+    @Test
+    public void testDeleteRollback() {
+        User user = new User();
+        user.setId(1L);
+        user.setName("Test User");
+        ormTemplate.save(user);
+        
+        try {
+            ormTemplate.executeInTransaction((template, session) -> {
+                user.setName("Updated Name");
+                session.update(user);
+                throw new RuntimeException("Simulated error during delete");
+            });
+            fail("Should throw exception");
+        } catch (RuntimeException e) {
+            // 验证更新操作被回滚
+            User afterRollback = ormTemplate.get(User.class, 1L);
+            assertEquals("Test User", afterRollback.getName());
+        }
+    }
+
+    @Test
+    public void testBatchOperationRollback() {
+        // 批量保存多个用户
+        for (int i = 1; i <= 5; i++) {
+            User user = new User();
+            user.setId((long) i);
+            user.setName("User " + i);
+            ormTemplate.save(user);
+        }
+        
+        try {
+            ormTemplate.executeInTransaction((template, session) -> {
+                for (int i = 3; i <= 6; i++) {
+                    User user = new User();
+                    user.setId((long) i);
+                    user.setName("Updated User " + i);
+                    session.update(user);
+                }
+                return null;
+            });
+            fail("Should throw exception when updating non-existent entity in batch");
+        } catch (RuntimeException e) {
+            // 验证所有原始数据保持不变
+            for (int i = 1; i <= 5; i++) {
+                User afterRollback = ormTemplate.get(User.class, (long) i);
+                assertNotNull(afterRollback);
+                assertEquals("User " + i, afterRollback.getName());
+            }
+        }
+    }
+
+    @Test
+    public void testQueryDuringTransaction() {
+        // 保存初始数据
+        User user = new User();
+        user.setId(1L);
+        user.setName("Test User");
+        ormTemplate.save(user);
+        
+        try {
+            ormTemplate.executeInTransaction((template, session) -> {
+                User found = template.get(User.class, 1L);
+                found.setName("Updated in Transaction");
+                session.update(found);
+                
+                User invalid = new User();
+                invalid.setId(1L);
+                session.save(invalid);
+                return null;
+            });
+            fail("Should throw exception");
+        } catch (RuntimeException e) {
+            // 验证所有操作都被回滚
+            User afterRollback = ormTemplate.get(User.class, 1L);
+            assertEquals("Test User", afterRollback.getName());
+        }
+    }
 } 
