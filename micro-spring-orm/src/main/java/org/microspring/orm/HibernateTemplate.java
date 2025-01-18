@@ -69,4 +69,8 @@ public class HibernateTemplate {
             return null;
         });
     }
+
+    public SessionFactory getSessionFactory() {
+        return sessionFactory;
+    }
 } 

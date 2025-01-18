@@ -31,15 +31,14 @@ public class OrmTemplateTest {
         props.setProperty("hibernate.dialect", "org.hibernate.dialect.H2Dialect");
         props.setProperty("hibernate.show_sql", "true");
         props.setProperty("hibernate.hbm2ddl.auto", "create-drop");
+        props.setProperty("hibernate.current_session_context_class", "thread");
         configuration.setHibernateProperties(props);
         configuration.setPackagesToScan(User.class.getName());
         configuration.afterPropertiesSet();
         
         SessionFactory sessionFactory = configuration.getSessionFactory();
-        JdbcTransactionManager transactionManager = new JdbcTransactionManager(dataSource);
-        
         HibernateTemplate hibernateTemplate = new HibernateTemplate(sessionFactory);
-        ormTemplate = new OrmTemplate(hibernateTemplate, transactionManager);
+        ormTemplate = new OrmTemplate(hibernateTemplate);
     }
 
     @Test
