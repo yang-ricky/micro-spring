@@ -7,6 +7,7 @@ import java.io.Serializable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
+import org.hibernate.Transaction;
 
 public class HibernateTemplate {
     
@@ -18,19 +19,12 @@ public class HibernateTemplate {
     }
 
     public <T> T execute(HibernateCallback<T> action) {
-        try (Session session = sessionFactory.openSession()) {
-            session.beginTransaction();
-            try {
-                T result = action.doInHibernate(session);
-                session.getTransaction().commit();
-                return result;
-            } catch (Exception e) {
-                if (session.getTransaction() != null && session.getTransaction().isActive()) {
-                    session.getTransaction().rollback();
-                }
-                logger.error("Error executing Hibernate action", e);
-                throw new RuntimeException("Error executing Hibernate action", e);
-            }
+        Session session = sessionFactory.getCurrentSession();
+        try {
+            return action.doInHibernate(session);
+        } catch (Exception e) {
+            logger.error("Error executing Hibernate action", e);
+            throw new RuntimeException("Error executing Hibernate action", e);
         }
     }
 
