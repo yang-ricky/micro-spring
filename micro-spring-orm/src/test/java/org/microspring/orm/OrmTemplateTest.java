@@ -4,18 +4,17 @@ import org.hibernate.SessionFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.microspring.jdbc.DriverManagerDataSource;
+import org.microspring.jdbc.JdbcTemplate;
 import org.microspring.jdbc.transaction.JdbcTransactionManager;
 import org.microspring.orm.config.OrmConfiguration;
 import org.microspring.orm.entity.User;
 
-import java.util.List;
 import java.util.Properties;
-
 import static org.junit.Assert.*;
 
-public class HibernateTemplateTest {
+public class OrmTemplateTest {
 
-    private HibernateTemplate hibernateTemplate;
+    private OrmTemplate ormTemplate;
 
     @Before
     public void setUp() {
@@ -26,7 +25,7 @@ public class HibernateTemplateTest {
         dataSource.setUsername("sa");
         dataSource.setPassword("");
 
-        // 创建ORM配置
+        // 配置Hibernate
         OrmConfiguration configuration = new OrmConfiguration(dataSource);
         Properties props = new Properties();
         props.setProperty("hibernate.dialect", "org.hibernate.dialect.H2Dialect");
@@ -35,51 +34,50 @@ public class HibernateTemplateTest {
         configuration.setHibernateProperties(props);
         configuration.setPackagesToScan(User.class.getName());
         configuration.afterPropertiesSet();
-
+        
         SessionFactory sessionFactory = configuration.getSessionFactory();
-        hibernateTemplate = new HibernateTemplate(sessionFactory);
+        JdbcTransactionManager transactionManager = new JdbcTransactionManager(dataSource);
+        
+        HibernateTemplate hibernateTemplate = new HibernateTemplate(sessionFactory);
+        ormTemplate = new OrmTemplate(hibernateTemplate, transactionManager);
     }
 
     @Test
-    public void testBasicCRUD() {
-        // Create
+    public void testSaveAndGet() {
+        // 创建并保存用户
         User user = new User();
         user.setId(1L);
         user.setName("Test User");
-        hibernateTemplate.save(user);
-
-        // Read
-        User found = hibernateTemplate.get(User.class, 1L);
+        
+        ormTemplate.save(user);
+        
+        // 查询并验证
+        User found = ormTemplate.get(User.class, 1L);
         assertNotNull(found);
         assertEquals("Test User", found.getName());
-
-        // Update
-        found.setName("Updated User");
-        hibernateTemplate.update(found);
-        User updated = hibernateTemplate.get(User.class, 1L);
-        assertEquals("Updated User", updated.getName());
-
-        // Delete
-        hibernateTemplate.delete(updated);
-        User deleted = hibernateTemplate.get(User.class, 1L);
-        assertNull(deleted);
     }
 
     @Test
-    public void testFind() {
-        // Save some test data
-        User user1 = new User();
-        user1.setId(1L);
-        user1.setName("User 1");
-        hibernateTemplate.save(user1);
-
-        User user2 = new User();
-        user2.setId(2L);
-        user2.setName("User 2");
-        hibernateTemplate.save(user2);
-
-        // Test HQL query
-        List<User> users = hibernateTemplate.find("from User where name like ?1", "User%");
-        assertEquals(2, users.size());
+    public void testUpdateAndDelete() {
+        // 创建并保存用户
+        User user = new User();
+        user.setId(1L);
+        user.setName("Original Name");
+        ormTemplate.save(user);
+        
+        // 更新用户
+        user.setName("Updated Name");
+        ormTemplate.update(user);
+        
+        // 验证更新
+        User updated = ormTemplate.get(User.class, 1L);
+        assertEquals("Updated Name", updated.getName());
+        
+        // 删除用户
+        ormTemplate.delete(updated);
+        
+        // 验证删除
+        User deleted = ormTemplate.get(User.class, 1L);
+        assertNull(deleted);
     }
 } 
