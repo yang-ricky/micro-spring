@@ -319,40 +319,38 @@ public class OrmTemplateTest {
 
     @Test
     public void testTransactionPropagation_RequiresNew() {
+        // 1. 保存初始数据
         User user = new User();
         user.setId(1L);
         user.setName("Original Name");
         ormTemplate.save(user);
 
-        // 外层事务
-        try {
-            ormTemplate.executeInTransaction((template1, session1) -> {
-                User outer = session1.get(User.class, 1L);
-                outer.setName("Updated in Outer");
-                session1.update(outer);
+        // 2. 外层事务
+        ormTemplate.executeInTransaction((template1, session1) -> {
+            User outer = session1.get(User.class, 1L);
+            outer.setName("Updated in Outer");
+            session1.update(outer);
 
-                // 内层事务（REQUIRES_NEW）- 应该创建新事务
-                try {
-                    ormTemplate.executeInTransaction((template2, session2) -> {
-                        User inner = session2.get(User.class, 1L);
-                        assertEquals("Original Name", inner.getName()); // 看不到外层事务的修改
-                        inner.setName("Updated in Inner");
-                        session2.update(inner);
-                        throw new RuntimeException("Inner transaction rollback");
-                    }, PropagationBehavior.REQUIRES_NEW);
-                } catch (RuntimeException e) {
-                    // 内层事务回滚不影响外层事务
-                    User afterInner = session1.get(User.class, 1L);
-                    assertEquals("Updated in Outer", afterInner.getName());
-                }
+            // 3. 内层事务（REQUIRES_NEW）
+            try {
+                ormTemplate.executeInTransaction((template2, session2) -> {
+                    User inner = session2.get(User.class, 1L);
+                    assertEquals("Original Name", inner.getName()); // 应该看到原始数据，因为外层事务还未提交
+                    inner.setName("Updated in Inner");
+                    session2.update(inner);
+                    throw new RuntimeException("Inner transaction rollback");
+                }, PropagationBehavior.REQUIRES_NEW);
+            } catch (RuntimeException e) {
+                // 4. 验证内层事务回滚后的状态
+                User afterInner = session1.get(User.class, 1L);
+                assertEquals("Updated in Outer", afterInner.getName());
+            }
+            return null;
+        });
 
-                return null;
-            });
-        } catch (RuntimeException e) {
-            // 验证最终状态
-            User afterAll = ormTemplate.get(User.class, 1L);
-            assertEquals("Original Name", afterAll.getName());
-        }
+        // 5. 验证最终状态
+        User afterAll = ormTemplate.get(User.class, 1L);
+        assertEquals("Updated in Outer", afterAll.getName());
     }
 
     @Test

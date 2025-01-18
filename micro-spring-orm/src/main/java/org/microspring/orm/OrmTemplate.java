@@ -122,10 +122,19 @@ public class OrmTemplate {
         switch (propagation) {
             case REQUIRES_NEW:
                 if (isExistingTransaction) {
-                    currentTx.commit();
-                    T result = doInNewTransaction(action, session, isolationLevel);
-                    session.beginTransaction();
-                    return result;
+                    logger.debug("Suspending current transaction for REQUIRES_NEW");
+                    session.flush();
+                    
+                    Session newSession = sessionFactory.openSession();
+                    try {
+                        logger.debug("Starting new transaction for REQUIRES_NEW");
+                        T result = doInNewTransaction(action, newSession, isolationLevel);
+                        logger.debug("New transaction completed successfully");
+                        return result;
+                    } finally {
+                        logger.debug("Resuming original transaction");
+                        newSession.close();
+                    }
                 }
                 return doInNewTransaction(action, session, isolationLevel);
 
@@ -147,13 +156,19 @@ public class OrmTemplate {
     private <T> T doInNewTransaction(TransactionCallback<T> action, Session session, int isolationLevel) {
         Transaction tx = session.beginTransaction();
         try {
+            logger.debug("Setting transaction isolation level: {}", isolationLevel);
             session.doWork(connection -> connection.setTransactionIsolation(isolationLevel));
             
+            logger.debug("Executing transaction callback");
             T result = action.doInTransaction(this, session);
+            
+            logger.debug("Committing transaction");
             tx.commit();
             return result;
         } catch (Exception e) {
+            logger.error("Transaction failed", e);
             if (tx != null && tx.isActive()) {
+                logger.debug("Rolling back transaction");
                 tx.rollback();
             }
             throw new RuntimeException("Transaction failed", e);
