@@ -39,15 +39,20 @@ public class OrmConfiguration implements InitializingBean {
         try {
             // 基础Hibernate配置
             org.hibernate.cfg.Configuration configuration = new org.hibernate.cfg.Configuration();
-            configuration.setProperties(hibernateProperties);
             
-            // 设置数据源
-            configuration.getProperties().put("hibernate.connection.datasource", dataSource);
+            // 合并所有属性
+            Properties props = new Properties();
+            props.putAll(hibernateProperties);
+            props.put("hibernate.connection.datasource", dataSource);
             
-            // 如果有包扫描路径，添加到配置中
+            // 设置所有属性
+            configuration.setProperties(props);
+            
+            // 添加所有实体类
             if (packagesToScan != null) {
-                for (String packageName : packagesToScan) {
-                    configuration.addPackage(packageName);
+                for (String packageToScan : packagesToScan) {
+                    // 直接添加实体类
+                    configuration.addAnnotatedClass(Class.forName(packageToScan));
                 }
             }
 

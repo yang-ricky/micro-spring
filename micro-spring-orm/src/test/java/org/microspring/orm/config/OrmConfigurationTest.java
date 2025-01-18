@@ -7,6 +7,7 @@ import org.h2.jdbcx.JdbcDataSource;
 import java.util.Properties;
 
 import static org.junit.Assert.assertNotNull;
+import org.microspring.orm.entity.User;
 
 public class OrmConfigurationTest {
 
@@ -29,7 +30,7 @@ public class OrmConfigurationTest {
         configuration.setHibernateProperties(hibernateProperties);
         
         // 设置实体扫描路径
-        configuration.setPackagesToScan("org.microspring.orm.entity");
+        configuration.setPackagesToScan(User.class.getName());
         
         // 初始化
         configuration.afterPropertiesSet();
