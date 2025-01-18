@@ -3,6 +3,8 @@ package org.microspring.jdbc;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.io.PrintWriter;
 import java.util.Properties;
 
 public class DriverManagerDataSource implements DataSource {
@@ -13,6 +15,7 @@ public class DriverManagerDataSource implements DataSource {
     private Properties connectionProperties = new Properties();
     
     private String loginTimeout = "30"; // 默认30秒
+    private PrintWriter logWriter;
 
     public void setUrl(String url) {
         this.url = url;
@@ -111,5 +114,49 @@ public class DriverManagerDataSource implements DataSource {
     @Override
     public String getDriverClassName() {
         return driverClassName;
+    }
+
+    @Override
+    public PrintWriter getLogWriter() throws SQLException {
+        return logWriter;
+    }
+
+    @Override
+    public void setLogWriter(PrintWriter out) throws SQLException {
+        this.logWriter = out;
+    }
+
+    @Override
+    public int getLoginTimeout() throws SQLException {
+        return Integer.parseInt(loginTimeout);
+    }
+
+    @Override
+    public void setLoginTimeout(int seconds) throws SQLException {
+        this.loginTimeout = String.valueOf(seconds);
+    }
+
+    @Override
+    public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException("getParentLogger is not supported");
+    }
+
+    @Override
+    public Connection getConnection(String username, String password) throws SQLException {
+        return DriverManager.getConnection(url, username, password);
+    }
+
+    @Override
+    public <T> T unwrap(Class<T> iface) throws SQLException {
+        if (iface.isInstance(this)) {
+            return iface.cast(this);
+        }
+        throw new SQLException("DataSource of type [" + getClass().getName() +
+                "] cannot be unwrapped as [" + iface.getName() + "]");
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        return iface.isInstance(this);
     }
 }

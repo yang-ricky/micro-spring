@@ -1,17 +1,10 @@
 package org.microspring.jdbc;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-
 /**
- * 简化版的 DataSource 接口
+ * 扩展的 DataSource 接口
+ * 继承自标准的 javax.sql.DataSource，增加了一些便于配置的方法
  */
-public interface DataSource {
-    /**
-     * 获取数据库连接
-     */
-    Connection getConnection() throws SQLException;
-
+public interface DataSource extends javax.sql.DataSource {
     /**
      * 获取数据库URL
      */
