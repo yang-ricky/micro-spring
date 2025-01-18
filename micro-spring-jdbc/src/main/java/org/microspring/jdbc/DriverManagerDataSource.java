@@ -92,4 +92,24 @@ public class DriverManagerDataSource implements DataSource {
         return String.format("URL: %s, Username: %s, Driver: %s", 
             url, username, driverClassName);
     }
+
+    @Override
+    public String getUrl() {
+        return url;
+    }
+
+    @Override
+    public String getUsername() {
+        return username;
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public String getDriverClassName() {
+        return driverClassName;
+    }
 }

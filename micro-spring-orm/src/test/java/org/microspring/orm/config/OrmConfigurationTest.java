@@ -2,7 +2,7 @@ package org.microspring.orm.config;
 
 import org.junit.Test;
 import org.hibernate.SessionFactory;
-import org.h2.jdbcx.JdbcDataSource;
+import org.microspring.jdbc.DriverManagerDataSource;
 
 import java.util.Properties;
 
@@ -13,10 +13,11 @@ public class OrmConfigurationTest {
 
     @Test
     public void testBasicOrmConfiguration() {
-        // 创建H2测试数据源
-        JdbcDataSource dataSource = new JdbcDataSource();
-        dataSource.setURL("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1");
-        dataSource.setUser("sa");
+        // 创建数据源
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.h2.Driver");
+        dataSource.setUrl("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1");
+        dataSource.setUsername("sa");
         dataSource.setPassword("");
 
         // 创建ORM配置

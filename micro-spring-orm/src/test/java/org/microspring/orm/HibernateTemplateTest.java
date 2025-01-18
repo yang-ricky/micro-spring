@@ -3,7 +3,8 @@ package org.microspring.orm;
 import org.hibernate.SessionFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.h2.jdbcx.JdbcDataSource;
+import org.microspring.jdbc.DriverManagerDataSource;
+import org.microspring.jdbc.transaction.JdbcTransactionManager;
 import org.microspring.orm.config.OrmConfiguration;
 import org.microspring.orm.entity.User;
 
@@ -15,14 +16,19 @@ import static org.junit.Assert.*;
 public class HibernateTemplateTest {
 
     private HibernateTemplate hibernateTemplate;
+    private JdbcTransactionManager transactionManager;
 
     @Before
     public void setUp() {
-        // 创建H2测试数据源
-        JdbcDataSource dataSource = new JdbcDataSource();
-        dataSource.setURL("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1");
-        dataSource.setUser("sa");
+        // 创建数据源
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.h2.Driver");
+        dataSource.setUrl("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1");
+        dataSource.setUsername("sa");
         dataSource.setPassword("");
+
+        // 创建事务管理器
+        transactionManager = new JdbcTransactionManager(dataSource);
 
         // 创建ORM配置
         OrmConfiguration configuration = new OrmConfiguration(dataSource);
@@ -36,6 +42,7 @@ public class HibernateTemplateTest {
 
         SessionFactory sessionFactory = configuration.getSessionFactory();
         hibernateTemplate = new HibernateTemplate(sessionFactory);
+        hibernateTemplate.setTransactionManager(transactionManager);
     }
 
     @Test

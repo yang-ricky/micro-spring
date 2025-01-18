@@ -5,7 +5,7 @@ import org.microspring.beans.factory.InitializingBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sql.DataSource;
+import org.microspring.jdbc.DataSource;
 import java.util.Properties;
 
 public class OrmConfiguration implements InitializingBean {
@@ -43,7 +43,13 @@ public class OrmConfiguration implements InitializingBean {
             // 合并所有属性
             Properties props = new Properties();
             props.putAll(hibernateProperties);
-            props.put("hibernate.connection.datasource", dataSource);
+            // 设置连接属性
+            props.put("hibernate.connection.driver_class", "org.h2.Driver");
+            props.put("hibernate.connection.url", dataSource.getUrl());
+            props.put("hibernate.connection.username", dataSource.getUsername());
+            props.put("hibernate.connection.password", dataSource.getPassword());
+            // 配置当前session上下文
+            props.put("hibernate.current_session_context_class", "thread");
             
             // 设置所有属性
             configuration.setProperties(props);
