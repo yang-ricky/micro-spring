@@ -8,6 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Arrays;
 import org.microspring.orm.repository.Pageable;
+import org.microspring.orm.repository.Query;
 
 public class QueryMethodParser {
     // 支持的操作符
@@ -28,7 +29,15 @@ public class QueryMethodParser {
     
     private static final Pattern FIND_BY_PATTERN = Pattern.compile("^findBy([A-Z][a-zA-Z0-9]*?)((And|Or)([A-Z][a-zA-Z0-9]*?))*$");
     
-    public static <T> QueryMethod parseMethod(Method method, Class<T> entityClass) {
+    public static QueryMethod parseMethod(Method method, Class<?> entityClass) {
+        // 首先检查是否有@Query注解
+        Query queryAnnotation = method.getAnnotation(Query.class);
+        if (queryAnnotation != null) {
+            // 如果有@Query注解，直接使用注解中的查询语句
+            return new QueryMethod(queryAnnotation.value(), hasPageableParameter(method));
+        }
+        
+        // 没有@Query注解，继续使用方法名解析
         String methodName = method.getName();
         if (!methodName.startsWith("findBy")) {
             throw new IllegalArgumentException("Not a valid query method: " + methodName);
@@ -157,7 +166,7 @@ public class QueryMethodParser {
     }
     
     public static boolean isQueryMethod(Method method) {
-        return method.getName().startsWith("findBy");
+        return method.getName().startsWith("findBy") || method.isAnnotationPresent(Query.class);
     }
     
     public static class QueryMethod {
@@ -178,5 +187,13 @@ public class QueryMethodParser {
         public boolean isPageable() {
             return pageable;
         }
+    }
+    
+    private static boolean hasPageableParameter(Method method) {
+        if (method.getParameters().length > 0) {
+            Class<?> lastParam = method.getParameters()[method.getParameters().length - 1].getType();
+            return Pageable.class.isAssignableFrom(lastParam);
+        }
+        return false;
     }
 } 

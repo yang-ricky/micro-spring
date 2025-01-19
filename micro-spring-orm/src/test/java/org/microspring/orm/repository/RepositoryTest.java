@@ -310,6 +310,36 @@ public class RepositoryTest {
         assertEquals(20, users.get(0).getAge().intValue());  // 最后一页应该是最小年龄
     }
 
+    @Test
+    public void testCustomQuery() {
+        // 创建测试数据
+        createTestUsers();
+        
+        // 测试@Query注解的查询
+        List<User> users = userRepository.findUsersByCustomQuery("%User%", 22);
+        assertNotNull(users);
+        assertTrue(users.size() > 0);
+        for (User user : users) {
+            assertTrue(user.getName().contains("User"));
+            assertTrue(user.getAge() > 22);
+        }
+        
+        // 测试带排序的查询
+        users = userRepository.findOldestUsers(20);
+        assertNotNull(users);
+        assertTrue(users.size() > 1);
+        // 验证降序排序
+        for (int i = 0; i < users.size() - 1; i++) {
+            assertTrue(users.get(i).getAge() >= users.get(i + 1).getAge());
+        }
+        
+        // 测试带分页的查询
+        Pageable pageable = Pageable.of(0, 2);
+        users = userRepository.findUsersByAgeRange(20, 25, pageable);
+        assertNotNull(users);
+        assertEquals(2, users.size());
+    }
+
     private void createTestUsers() {
         for (int i = 0; i < 5; i++) {
             User user = new User();

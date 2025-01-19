@@ -18,4 +18,10 @@ public interface UserRepository extends CrudRepository<User, Long> {
     List<User> findByEmailIsNull();
     List<User> findByNameLike(String nameLike, Pageable pageable);
     List<User> findByAgeGreaterThan(int age, Sort sort);
+    @Query("from User where name like ?1 and age > ?2")
+    List<User> findUsersByCustomQuery(String namePattern, int minAge);
+    @Query("from User u where u.age > ?1 order by u.age desc")
+    List<User> findOldestUsers(int minAge);
+    @Query("from User u where u.age between ?1 and ?2")
+    List<User> findUsersByAgeRange(int minAge, int maxAge, Pageable pageable);
 } 

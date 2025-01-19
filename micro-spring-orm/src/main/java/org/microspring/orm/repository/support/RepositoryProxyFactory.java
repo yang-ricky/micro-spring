@@ -7,6 +7,7 @@ import org.microspring.orm.transaction.TransactionCallback;
 import org.microspring.orm.repository.Sort;
 import org.microspring.orm.repository.Pageable;
 import org.microspring.orm.repository.support.QueryMethodParser.QueryMethod;
+import org.microspring.orm.repository.Query;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -94,7 +95,7 @@ public class RepositoryProxyFactory {
                     
                 default:
                     // 检查是否是查询方法
-                    if (QueryMethodParser.isQueryMethod(method)) {
+                    if (QueryMethodParser.isQueryMethod(method) || method.isAnnotationPresent(Query.class)) {
                         return executeQuery(method, args);
                     }
                     throw new UnsupportedOperationException("Method not implemented: " + methodName);
