@@ -13,6 +13,8 @@ import org.microspring.jdbc.DriverManagerDataSource;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
 
@@ -338,6 +340,66 @@ public class RepositoryTest {
         users = userRepository.findUsersByAgeRange(20, 25, pageable);
         assertNotNull(users);
         assertEquals(2, users.size());
+    }
+
+    @Test
+    public void testBatchOperations() {
+        // 准备测试数据
+        List<User> users = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            User user = new User();
+            user.setId(nextId());
+            user.setName("Batch User " + i);
+            user.setAge(20 + i);
+            users.add(user);
+        }
+        
+        // 测试批量保存
+        List<User> savedUsers = userRepository.saveAll(users);
+        assertEquals(5, savedUsers.size());
+        
+        // 测试批量查询
+        List<Long> ids = savedUsers.stream()
+            .map(User::getId)
+            .collect(Collectors.toList());
+        List<User> foundUsers = userRepository.findAllById(ids);
+        assertEquals(5, foundUsers.size());
+        
+        // 测试批量删除
+        userRepository.deleteAll(savedUsers);
+        List<User> remainingUsers = userRepository.findAllById(ids);
+        assertTrue(remainingUsers.isEmpty());
+    }
+
+    @Test
+    public void testBatchOperationsPerformance() {
+        // 准备大量测试数据
+        List<User> users = new ArrayList<>();
+        int batchSize = 100;
+        for (int i = 0; i < batchSize; i++) {
+            User user = new User();
+            user.setId(nextId());
+            user.setName("Performance User " + i);
+            user.setAge(20 + (i % 50));
+            users.add(user);
+        }
+        
+        // 测试批量保存性能
+        long startTime = System.currentTimeMillis();
+        List<User> savedUsers = userRepository.saveAll(users);
+        long endTime = System.currentTimeMillis();
+        System.out.println("Batch save " + batchSize + " users took: " + (endTime - startTime) + "ms");
+        assertEquals(batchSize, savedUsers.size());
+        
+        // 测试批量查询性能
+        List<Long> ids = savedUsers.stream()
+            .map(User::getId)
+            .collect(Collectors.toList());
+        startTime = System.currentTimeMillis();
+        List<User> foundUsers = userRepository.findAllById(ids);
+        endTime = System.currentTimeMillis();
+        System.out.println("Batch find " + batchSize + " users took: " + (endTime - startTime) + "ms");
+        assertEquals(batchSize, foundUsers.size());
     }
 
     private void createTestUsers() {

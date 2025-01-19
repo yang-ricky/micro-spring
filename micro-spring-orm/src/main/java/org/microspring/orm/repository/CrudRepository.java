@@ -21,4 +21,13 @@ public interface CrudRepository<T, ID extends Serializable> extends Repository<T
     void delete(T entity);
     
     void deleteAll();
+    
+    // 批量保存
+    List<T> saveAll(List<T> entities);
+    
+    // 批量删除
+    void deleteAll(List<T> entities);
+    
+    // 批量查询
+    List<T> findAllById(List<ID> ids);
 } 

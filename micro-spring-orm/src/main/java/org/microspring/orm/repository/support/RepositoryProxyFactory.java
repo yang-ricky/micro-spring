@@ -14,6 +14,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class RepositoryProxyFactory {
@@ -91,6 +93,30 @@ public class RepositoryProxyFactory {
                     return doInTransaction(session -> {
                         session.createQuery("delete from " + entityClass.getName()).executeUpdate();
                         return null;
+                    });
+                    
+                case "saveAll":
+                    return doInTransaction(session -> {
+                        List<T> entities = (List<T>) args[0];
+                        List<T> savedEntities = new ArrayList<>();
+                        for (T entity : entities) {
+                            session.saveOrUpdate(entity);
+                            savedEntities.add(entity);
+                        }
+                        return savedEntities;
+                    });
+                    
+                case "findAllById":
+                    return doInTransaction(session -> {
+                        List<ID> ids = (List<ID>) args[0];
+                        if (ids.isEmpty()) {
+                            return new ArrayList<>();
+                        }
+                        String queryString = "from " + entityClass.getName() + 
+                                           " where id in (:ids)";
+                        return session.createQuery(queryString, entityClass)
+                                    .setParameterList("ids", ids)
+                                    .list();
                     });
                     
                 default:
