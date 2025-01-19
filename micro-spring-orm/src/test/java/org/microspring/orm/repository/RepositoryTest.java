@@ -169,4 +169,48 @@ public class RepositoryTest {
         assertEquals(1, users.size());
         assertEquals("testuser", users.get(0).getUsername());
     }
+
+    @Test
+    public void testExtendedQueries() {
+        // 创建测试数据
+        User user1 = new User();
+        user1.setId(nextId());
+        user1.setName("Test User");
+        user1.setUsername("testuser");
+        user1.setAge(25);
+        userRepository.save(user1);
+        
+        User user2 = new User();
+        user2.setId(nextId());
+        user2.setName("Another User");
+        user2.setUsername("anotheruser");
+        user2.setAge(30);
+        user2.setEmail("test@example.com");
+        userRepository.save(user2);
+        
+        // 测试Like查询
+        List<User> users = userRepository.findByNameLike("%Test%");
+        assertNotNull(users);
+        assertEquals(1, users.size());
+        assertEquals("Test User", users.get(0).getName());
+        
+        // 测试Between查询
+        users = userRepository.findByAgeBetween(20, 28);
+        assertEquals(1, users.size());
+        assertEquals(25, users.get(0).getAge().intValue());
+        
+        // 测试GreaterThan查询
+        users = userRepository.findByAgeGreaterThan(28);
+        assertEquals(1, users.size());
+        assertEquals(30, users.get(0).getAge().intValue());
+        
+        // 测试组合查询
+        users = userRepository.findByNameLikeAndAgeGreaterThan("%User%", 20);
+        assertEquals(2, users.size());
+        
+        // 测试IsNull查询
+        users = userRepository.findByEmailIsNull();
+        assertEquals(1, users.size());
+        assertEquals("testuser", users.get(0).getUsername());
+    }
 } 
