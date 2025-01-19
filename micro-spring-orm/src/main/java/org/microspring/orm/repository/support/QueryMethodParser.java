@@ -33,9 +33,15 @@ public class QueryMethodParser {
         Matcher matcher = operatorPattern.matcher(propertyPath);
         List<String> operators = new ArrayList<>();
         while (matcher.find()) {
-            operators.add(matcher.group());
+            operators.add(matcher.group().toLowerCase());
         }
         System.out.println("Operators: " + operators);
+        
+        // 如果有多个操作符且包含OR，需要添加括号
+        boolean needParentheses = operators.size() > 1 && operators.contains("or");
+        if (needParentheses) {
+            queryBuilder.append("(");
+        }
         
         for (int i = 0; i < parts.length; i++) {
             String part = parts[i];
@@ -48,6 +54,10 @@ public class QueryMethodParser {
                 queryBuilder.append(" ").append(operators.get(i)).append(" ");
             }
             System.out.println("Current query: [" + queryBuilder.toString() + "]");
+        }
+        
+        if (needParentheses) {
+            queryBuilder.append(")");
         }
         
         String query = queryBuilder.toString().trim();
