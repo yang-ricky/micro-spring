@@ -93,13 +93,14 @@ public class RepositoryProxyFactory {
                     // 检查是否是查询方法
                     if (QueryMethodParser.isQueryMethod(method)) {
                         return doInTransaction(session -> {
-                            QueryMethodParser.QueryMethod queryMethod = 
-                                QueryMethodParser.parseMethod(method, entityClass);
+                            QueryMethodParser.QueryMethod queryMethod = QueryMethodParser.parseMethod(method, entityClass);
                             
-                            org.hibernate.query.Query<T> query = session.createQuery(queryMethod.getQueryString(), entityClass);
+                            org.hibernate.query.Query<T> query = session.createQuery(queryMethod.getQueryString());
                             // 设置多个参数
-                            for (int i = 0; i < args.length; i++) {
-                                query.setParameter(i + 1, args[i]);
+                            if (args != null) {
+                                for (int i = 0; i < args.length; i++) {
+                                    query.setParameter(i + 1, args[i]);
+                                }
                             }
                             return query.getResultList();
                         });

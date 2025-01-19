@@ -120,7 +120,7 @@ public class RepositoryTest {
         assertEquals("Test User", users.get(0).getName());
     }
 
-    //@Test
+    @Test
     public void testFindByUsername() {
         // 创建测试数据
         User user1 = new User();
