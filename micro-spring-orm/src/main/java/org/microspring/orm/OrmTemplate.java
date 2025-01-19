@@ -174,6 +174,10 @@ public class OrmTemplate {
             throw new RuntimeException("Transaction failed", e);
         }
     }
+
+    public SessionFactory getSessionFactory() {
+        return this.sessionFactory;
+    }
 }
 
 @FunctionalInterface
