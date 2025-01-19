@@ -16,4 +16,6 @@ public interface UserRepository extends CrudRepository<User, Long> {
     List<User> findByNameLikeAndAgeGreaterThan(String nameLike, int age);
     List<User> findByUsernameIn(List<String> usernames);
     List<User> findByEmailIsNull();
+    List<User> findByNameLike(String nameLike, Pageable pageable);
+    List<User> findByAgeGreaterThan(int age, Sort sort);
 } 

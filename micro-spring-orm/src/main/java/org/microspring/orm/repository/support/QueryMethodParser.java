@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Arrays;
+import org.microspring.orm.repository.Pageable;
 
 public class QueryMethodParser {
     // 支持的操作符
@@ -61,9 +62,22 @@ public class QueryMethodParser {
             appendOperation(queryBuilder, operations.get(i), i + 1);
         }
         
+        // 检查是否有分页参数
+        boolean hasPageable = false;
+        if (method.getParameters().length > 0) {
+            Class<?> lastParam = method.getParameters()[method.getParameters().length - 1].getType();
+            hasPageable = Pageable.class.isAssignableFrom(lastParam);
+        }
+        
         String query = queryBuilder.toString().trim();
+        
+        // 如果有Sort参数，添加ORDER BY子句的占位符
+        if (hasPageable) {
+            query += " #{orderBy}";
+        }
+        
         System.out.println("Final query: [" + query + "]");
-        return new QueryMethod(query);
+        return new QueryMethod(query, hasPageable);
     }
     
     private static List<PropertyOperation> parsePropertyOperations(String propertyPath) {
@@ -148,15 +162,21 @@ public class QueryMethodParser {
     
     public static class QueryMethod {
         private final String queryString;
+        private final boolean pageable;
         
-        public QueryMethod(String queryString) {
+        public QueryMethod(String queryString, boolean pageable) {
             System.out.println("QueryMethod constructor received: [" + queryString + "]");
             this.queryString = queryString;
+            this.pageable = pageable;
         }
         
         public String getQueryString() {
             System.out.println("QueryMethod.getQueryString returning: [" + queryString + "]");
             return queryString;
+        }
+        
+        public boolean isPageable() {
+            return pageable;
         }
     }
 } 

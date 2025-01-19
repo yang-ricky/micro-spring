@@ -4,6 +4,9 @@ import org.microspring.orm.OrmTemplate;
 import org.microspring.orm.repository.CrudRepository;
 import org.hibernate.Session;
 import org.microspring.orm.transaction.TransactionCallback;
+import org.microspring.orm.repository.Sort;
+import org.microspring.orm.repository.Pageable;
+import org.microspring.orm.repository.support.QueryMethodParser.QueryMethod;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -92,21 +95,89 @@ public class RepositoryProxyFactory {
                 default:
                     // 检查是否是查询方法
                     if (QueryMethodParser.isQueryMethod(method)) {
-                        return doInTransaction(session -> {
-                            QueryMethodParser.QueryMethod queryMethod = QueryMethodParser.parseMethod(method, entityClass);
-                            
-                            org.hibernate.query.Query<T> query = session.createQuery(queryMethod.getQueryString());
-                            // 设置多个参数
-                            if (args != null) {
-                                for (int i = 0; i < args.length; i++) {
-                                    query.setParameter(i + 1, args[i]);
-                                }
-                            }
-                            return query.getResultList();
-                        });
+                        return executeQuery(method, args);
                     }
                     throw new UnsupportedOperationException("Method not implemented: " + methodName);
             }
+        }
+        
+        private Object executeQuery(Method method, Object[] args) {
+            QueryMethod queryMethod = QueryMethodParser.parseMethod(method, entityClass);
+            final String finalQueryString;
+            final Pageable finalPageable;
+            
+            // 处理排序和分页
+            if (queryMethod.isPageable() && args != null && args.length > 0) {
+                Pageable pageable = (Pageable) args[args.length - 1];
+                if (pageable != null) {
+                    String queryString = queryMethod.getQueryString();
+                    
+                    // 添加排序
+                    if (pageable.getSort() != null) {
+                        StringBuilder orderBy = new StringBuilder(" order by ");
+                        for (Sort.Order order : pageable.getSort().getOrders()) {
+                            orderBy.append(order.getProperty())
+                                   .append(" ")
+                                   .append(order.getDirection().name())
+                                   .append(",");
+                        }
+                        orderBy.setLength(orderBy.length() - 1); // 移除最后的逗号
+                        queryString = queryString.replace("#{orderBy}", orderBy.toString());
+                    } else {
+                        queryString = queryString.replace("#{orderBy}", "");
+                    }
+                    
+                    finalQueryString = queryString;
+                    finalPageable = pageable;
+                } else {
+                    finalQueryString = queryMethod.getQueryString();
+                    finalPageable = null;
+                }
+            } else {
+                // 处理只有Sort参数的情况
+                Sort sort = null;
+                if (args != null && args.length > 0 && args[args.length - 1] instanceof Sort) {
+                    sort = (Sort) args[args.length - 1];
+                }
+                
+                String queryString = queryMethod.getQueryString();
+                if (sort != null) {
+                    StringBuilder orderBy = new StringBuilder(" order by ");
+                    for (Sort.Order order : sort.getOrders()) {
+                        orderBy.append(order.getProperty())
+                               .append(" ")
+                               .append(order.getDirection().name())
+                               .append(",");
+                    }
+                    orderBy.setLength(orderBy.length() - 1); // 移除最后的逗号
+                    queryString += orderBy.toString();
+                }
+                
+                finalQueryString = queryString;
+                finalPageable = null;
+            }
+            
+            return doInTransaction(session -> {
+                org.hibernate.query.Query<T> query = session.createQuery(finalQueryString, entityClass);
+                
+                // 设置分页参数
+                if (finalPageable != null) {
+                    query.setFirstResult(finalPageable.getPageNumber() * finalPageable.getPageSize())
+                         .setMaxResults(finalPageable.getPageSize());
+                }
+                
+                // 设置查询参数
+                if (args != null) {
+                    int paramIndex = 1;
+                    for (Object arg : args) {
+                        if (!(arg instanceof Pageable) && !(arg instanceof Sort)) {
+                            query.setParameter(paramIndex++, arg);
+                        }
+                    }
+                }
+                
+                return query.getResultList();
+            });
         }
         
         private <R> R doInTransaction(SessionCallback<R> callback) {

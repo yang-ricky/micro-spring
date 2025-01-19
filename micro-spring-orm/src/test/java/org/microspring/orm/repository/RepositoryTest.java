@@ -213,4 +213,110 @@ public class RepositoryTest {
         assertEquals(1, users.size());
         assertEquals("testuser", users.get(0).getUsername());
     }
+
+    @Test
+    public void testSorting() {
+        // 创建测试数据
+        createTestUsers();  // 创建5个用户
+        
+        // 测试升序排序
+        Sort nameAscSort = Sort.by(Sort.Order.asc("name"));
+        List<User> users = userRepository.findByAgeGreaterThan(20, nameAscSort);
+        assertNotNull(users);
+        assertTrue(users.size() > 1);
+        assertTrue(users.get(0).getName().compareTo(users.get(1).getName()) <= 0);
+        
+        // 测试降序排序
+        Sort ageDescSort = Sort.by(Sort.Order.desc("age"));
+        users = userRepository.findByAgeGreaterThan(20, ageDescSort);
+        assertNotNull(users);
+        assertTrue(users.size() > 1);
+        assertTrue(users.get(0).getAge() >= users.get(1).getAge());
+        
+        // 测试多字段排序
+        Sort multiSort = Sort.by(
+            Sort.Order.desc("age"),
+            Sort.Order.asc("name")
+        );
+        users = userRepository.findByAgeGreaterThan(20, multiSort);
+        assertNotNull(users);
+        assertTrue(users.size() > 1);
+        // 如果年龄相同，则名字应该是升序的
+        for (int i = 0; i < users.size() - 1; i++) {
+            if (users.get(i).getAge().equals(users.get(i + 1).getAge())) {
+                assertTrue(users.get(i).getName().compareTo(users.get(i + 1).getName()) <= 0);
+            }
+        }
+    }
+
+    @Test
+    public void testPagination() {
+        // 创建测试数据
+        createTestUsers();  // 创建5个用户
+        
+        // 测试分页 - 第一页
+        Pageable pageable = Pageable.of(0, 2);
+        List<User> users = userRepository.findByNameLike("%User%", pageable);
+        assertNotNull(users);
+        assertEquals(2, users.size());  // 第一页应该有2条记录
+        
+        // 测试分页 - 第二页
+        pageable = Pageable.of(1, 2);
+        users = userRepository.findByNameLike("%User%", pageable);
+        assertNotNull(users);
+        assertEquals(2, users.size());  // 第二页应该有2条记录
+        
+        // 测试分页 - 最后一页
+        pageable = Pageable.of(2, 2);
+        users = userRepository.findByNameLike("%User%", pageable);
+        assertNotNull(users);
+        assertEquals(1, users.size());  // 最后一页应该只有1条记录
+        
+        // 测试分页 - 超出范围的页
+        pageable = Pageable.of(3, 2);
+        users = userRepository.findByNameLike("%User%", pageable);
+        assertNotNull(users);
+        assertEquals(0, users.size());  // 超出范围的页应该返回空列表
+        
+        // 测试分页 - 不同的页大小
+        pageable = Pageable.of(0, 3);
+        users = userRepository.findByNameLike("%User%", pageable);
+        assertNotNull(users);
+        assertEquals(3, users.size());  // 应该返回3条记录
+    }
+
+    @Test
+    public void testPaginationWithSorting() {
+        // 创建测试数据
+        createTestUsers();  // 创建5个用户
+        
+        // 测试分页和排序组合
+        Pageable pageable = Pageable.of(0, 2, Sort.by(Sort.Order.desc("age")));
+        List<User> users = userRepository.findByNameLike("%User%", pageable);
+        assertNotNull(users);
+        assertEquals(2, users.size());
+        assertTrue(users.get(0).getAge() >= users.get(1).getAge());  // 验证排序
+        assertEquals(24, users.get(0).getAge().intValue());  // 第一页第一条应该是最大年龄
+        
+        // 验证所有页的数据正确性
+        pageable = Pageable.of(1, 2, Sort.by(Sort.Order.desc("age")));
+        users = userRepository.findByNameLike("%User%", pageable);
+        assertEquals(2, users.size());
+        assertEquals(22, users.get(0).getAge().intValue());  // 第二页第一条应该是第三大年龄
+        
+        pageable = Pageable.of(2, 2, Sort.by(Sort.Order.desc("age")));
+        users = userRepository.findByNameLike("%User%", pageable);
+        assertEquals(1, users.size());
+        assertEquals(20, users.get(0).getAge().intValue());  // 最后一页应该是最小年龄
+    }
+
+    private void createTestUsers() {
+        for (int i = 0; i < 5; i++) {
+            User user = new User();
+            user.setId(nextId());
+            user.setName("Test User " + i);
+            user.setAge(20 + i);  // 20, 21, 22, 23, 24
+            userRepository.save(user);
+        }
+    }
 } 
