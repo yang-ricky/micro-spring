@@ -6,4 +6,5 @@ import java.util.List;
 @OrmRepository
 public interface UserRepository extends CrudRepository<User, Long> {
     List<User> findByName(String name);
+    List<User> findByUsername(String username);
 } 

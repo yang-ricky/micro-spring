@@ -100,4 +100,26 @@ public class RepositoryTest {
         assertEquals(1, users.size());
         assertEquals("Test User", users.get(0).getName());
     }
+
+    @Test
+    public void testFindByUsername() {
+        // 创建测试数据
+        User user1 = new User();
+        user1.setId(1L);
+        user1.setName("Test User");
+        user1.setUsername("testuser");
+        userRepository.save(user1);
+        
+        User user2 = new User();
+        user2.setId(2L);
+        user2.setName("Another User");
+        user2.setUsername("anotheruser");
+        userRepository.save(user2);
+        
+        // 测试findByUsername
+        List<User> users = userRepository.findByUsername("testuser");
+        assertNotNull(users);
+        assertEquals(1, users.size());
+        assertEquals("testuser", users.get(0).getUsername());
+    }
 } 
