@@ -3,6 +3,7 @@ package org.microspring.orm.repository.support;
 import org.microspring.orm.OrmTemplate;
 import org.microspring.orm.repository.CrudRepository;
 import org.hibernate.Session;
+import org.microspring.orm.transaction.TransactionCallback;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -95,9 +96,12 @@ public class RepositoryProxyFactory {
                             QueryMethodParser.QueryMethod queryMethod = 
                                 QueryMethodParser.parseMethod(method, entityClass);
                             
-                            return session.createQuery(queryMethod.getQueryString(), entityClass)
-                                .setParameter(1, args[0])
-                                .getResultList();
+                            org.hibernate.query.Query<T> query = session.createQuery(queryMethod.getQueryString(), entityClass);
+                            // 设置多个参数
+                            for (int i = 0; i < args.length; i++) {
+                                query.setParameter(i + 1, args[i]);
+                            }
+                            return query.getResultList();
                         });
                     }
                     throw new UnsupportedOperationException("Method not implemented: " + methodName);
@@ -105,23 +109,13 @@ public class RepositoryProxyFactory {
         }
         
         private <R> R doInTransaction(SessionCallback<R> callback) {
-            Session session = null;
-            try {
-                session = ormTemplate.getSessionFactory().openSession();
-                session.beginTransaction();
-                R result = callback.doInSession(session);
-                session.getTransaction().commit();
-                return result;
-            } catch (Exception e) {
-                if (session != null && session.getTransaction() != null && session.getTransaction().isActive()) {
-                    session.getTransaction().rollback();
+            return ormTemplate.executeInTransaction((template, session) -> {
+                try {
+                    return callback.doInSession(session);
+                } catch (Exception e) {
+                    throw new RuntimeException("Transaction failed", e);
                 }
-                throw new RuntimeException("Transaction failed", e);
-            } finally {
-                if (session != null) {
-                    session.close();
-                }
-            }
+            });
         }
     }
 } 

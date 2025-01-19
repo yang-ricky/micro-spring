@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.List;
 
+import org.microspring.orm.transaction.TransactionCallback;
+
 /**
  * ORM操作的模板类，封装HibernateTemplate并提供事务管理
  */
@@ -178,9 +180,4 @@ public class OrmTemplate {
     public SessionFactory getSessionFactory() {
         return this.sessionFactory;
     }
-}
-
-@FunctionalInterface
-interface TransactionCallback<T> {
-    T doInTransaction(OrmTemplate template, Session session);
 } 
