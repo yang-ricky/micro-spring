@@ -89,6 +89,17 @@ public class RepositoryProxyFactory {
                     });
                     
                 default:
+                    // 检查是否是查询方法
+                    if (QueryMethodParser.isQueryMethod(method)) {
+                        return doInTransaction(session -> {
+                            QueryMethodParser.QueryMethod queryMethod = 
+                                QueryMethodParser.parseMethod(method, entityClass);
+                            
+                            return session.createQuery(queryMethod.getQueryString(), entityClass)
+                                .setParameter(1, args[0])
+                                .getResultList();
+                        });
+                    }
                     throw new UnsupportedOperationException("Method not implemented: " + methodName);
             }
         }

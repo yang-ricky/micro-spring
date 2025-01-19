@@ -9,6 +9,7 @@ import org.microspring.orm.entity.User;
 import org.microspring.orm.repository.support.RepositoryBeanFactoryPostProcessor;
 import org.microspring.jdbc.DriverManagerDataSource;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -78,5 +79,25 @@ public class RepositoryTest {
         // 删除
         userRepository.deleteById(1L);
         assertFalse(userRepository.existsById(1L));
+    }
+
+    @Test
+    public void testFindByName() {
+        // 创建测试数据
+        User user1 = new User();
+        user1.setId(1L);
+        user1.setName("Test User");
+        userRepository.save(user1);
+        
+        User user2 = new User();
+        user2.setId(2L);
+        user2.setName("Another User");
+        userRepository.save(user2);
+        
+        // 测试findByName
+        List<User> users = userRepository.findByName("Test User");
+        assertNotNull(users);
+        assertEquals(1, users.size());
+        assertEquals("Test User", users.get(0).getName());
     }
 } 
