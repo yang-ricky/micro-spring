@@ -1,5 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans>
+    <!-- 基本bean测试 -->
     <bean id="testBean" 
           class="org.microspring.context.ClassPathXmlApplicationContextTest$TestBean"/>
+          
+    <!-- 属性注入测试 -->
+    <bean id="propertyBean" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$TestBean">
+        <property name="name" value="property-injected"/>
+    </bean>
+    
+    <!-- 构造器注入测试 -->
+    <bean id="constructorBean" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$ConstructorBean">
+        <constructor-arg ref="testBean"/>
+    </bean>
+    
+    <!-- 依赖注入测试 -->
+    <bean id="dependentBean" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$DependentBean">
+        <property name="testBean" ref="testBean"/>
+    </bean>
+    
+    <!-- 原型作用域测试 -->
+    <bean id="prototypeBean" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$TestBean"
+          scope="prototype">
+        <property name="name" value="prototype"/>
+    </bean>
+    
+    <!-- 单例作用域测试 -->
+    <bean id="singletonBean" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$TestBean"
+          scope="singleton">
+        <property name="name" value="singleton"/>
+    </bean>
+    
+    <!-- 生命周期测试 -->
+    <bean id="lifecycleBean" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$LifecycleBean"
+          init-method="init"
+          destroy-method="destroy"/>
+          
+    <!-- 集合注入测试 -->
+    <bean id="collectionBean" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$CollectionBean">
+        <property name="list">
+            <list>
+                <value>value1</value>
+                <value>value2</value>
+            </list>
+        </property>
+        <property name="map">
+            <map>
+                <entry key="key1" value="value1"/>
+                <entry key="key2" value="value2"/>
+            </map>
+        </property>
+    </bean>
+    
+    <!-- 循环依赖测试 -->
+    <bean id="circularA" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$CircularA">
+        <property name="circularB" ref="circularB"/>
+    </bean>
+    
+    <bean id="circularB" 
+          class="org.microspring.context.ClassPathXmlApplicationContextTest$CircularB">
+        <property name="circularA" ref="circularA"/>
+    </bean>
+    
 </beans> 

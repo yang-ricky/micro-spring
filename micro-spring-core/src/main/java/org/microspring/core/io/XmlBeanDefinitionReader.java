@@ -43,28 +43,53 @@ public class XmlBeanDefinitionReader {
                 Element ele = (Element) nl.item(i);
                 String id = ele.getAttribute("id");
                 String className = ele.getAttribute("class");
-                String lazyInit = ele.getAttribute("lazy-init");
                 
                 Class<?> clz = Class.forName(className);
                 DefaultBeanDefinition bd = new DefaultBeanDefinition(clz);
                 
+                // 解析scope属性
+                String scope = ele.getAttribute("scope");
+                if (scope != null && !scope.isEmpty()) {
+                    bd.setScope(scope);
+                }
+                
+                String lazyInit = ele.getAttribute("lazy-init");
                 if ("true".equals(lazyInit)) {
                     bd.setLazyInit(true);
                 }
                 
+                // 解析生命周期方法
+                String initMethod = ele.getAttribute("init-method");
+                if (initMethod != null && !initMethod.isEmpty()) {
+                    bd.setInitMethodName(initMethod);
+                }
+                
+                String destroyMethod = ele.getAttribute("destroy-method");
+                if (destroyMethod != null && !destroyMethod.isEmpty()) {
+                    bd.setDestroyMethodName(destroyMethod);
+                }
+                
                 // 处理构造器参数
                 NodeList constructorNodes = ele.getElementsByTagName("constructor-arg");
+                
                 for (int j = 0; j < constructorNodes.getLength(); j++) {
                     Element constructorEle = (Element) constructorNodes.item(j);
                     String ref = constructorEle.getAttribute("ref");
+                    String value = constructorEle.getAttribute("value");
+                    
+                    
                     if (ref != null && !ref.isEmpty()) {
                         ConstructorArg arg = new ConstructorArg(ref, null, Object.class);
+                        bd.addConstructorArg(arg);
+                    } else if (value != null && !value.isEmpty()) {
+                        ConstructorArg arg = new ConstructorArg(null, value, String.class);
                         bd.addConstructorArg(arg);
                     }
                 }
                 
                 // 处理属性注入
                 NodeList propertyNodes = ele.getElementsByTagName("property");
+                
                 for (int j = 0; j < propertyNodes.getLength(); j++) {
                     Element propEle = (Element) propertyNodes.item(j);
                     handleProperty(propEle, bd);
@@ -73,6 +98,7 @@ public class XmlBeanDefinitionReader {
                 beanFactory.registerBeanDefinition(id, bd);
             }
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Error loading XML file: " + location, e);
         }
     }
@@ -81,6 +107,7 @@ public class XmlBeanDefinitionReader {
         String name = propElement.getAttribute("name");
         String value = propElement.getAttribute("value");
         String ref = propElement.getAttribute("ref");
+        
         
         // 处理List类型的属性
         NodeList listNodes = propElement.getElementsByTagName("list");
