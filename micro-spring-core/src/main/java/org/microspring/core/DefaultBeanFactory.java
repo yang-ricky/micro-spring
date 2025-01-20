@@ -275,7 +275,11 @@ public class DefaultBeanFactory implements BeanFactory {
             if (pv.isRef()) {
                 String refName = pv.getRef();
                 try {
-                    value = doGetBean(refName, null);
+                    // 先尝试从缓存中获取
+                    value = getSingleton(refName, true);
+                    if (value == null) {
+                        value = doGetBean(refName, null);
+                    }
                 } catch (Exception e) {
                     if (e instanceof CircularDependencyException) {
                         throw e;
@@ -290,21 +294,29 @@ public class DefaultBeanFactory implements BeanFactory {
             field.set(bean, value);
         }
 
-        // 2. 处理 @Autowired 字段注入
-        for (Field field : bean.getClass().getDeclaredFields()) {
+        // 2. 处理 @Autowired 注解的字段注入
+        for (Field field : bd.getBeanClass().getDeclaredFields()) {
             Autowired autowired = field.getAnnotation(Autowired.class);
             if (autowired != null) {
                 field.setAccessible(true);
                 
-                // 检查是否有 @Qualifier
+                // 获取依赖的bean名称
+                String refName;
                 Qualifier qualifier = field.getAnnotation(Qualifier.class);
-                Object value;
+                if (qualifier != null) {
+                    refName = qualifier.value();
+                } else {
+                    // 使用字段类型作为依赖的bean名称
+                    Class<?> fieldType = field.getType();
+                    refName = Character.toLowerCase(fieldType.getSimpleName().charAt(0)) 
+                             + fieldType.getSimpleName().substring(1);
+                }
                 
                 try {
-                    if (qualifier != null) {
-                        value = getBean(qualifier.value());
-                    } else {
-                        value = getBean(field.getType());
+                    // 先尝试从缓存中获取
+                    Object value = getSingleton(refName, true);
+                    if (value == null) {
+                        value = doGetBean(refName, field.getType());
                     }
                     field.set(bean, value);
                 } catch (Exception e) {
@@ -312,7 +324,7 @@ public class DefaultBeanFactory implements BeanFactory {
                         throw e;
                     }
                     throw new CircularDependencyException(
-                        "Error autowiring field '" + field.getName() + "'", e);
+                        "Error injecting autowired field '" + field.getName() + "'", e);
                 }
             }
         }

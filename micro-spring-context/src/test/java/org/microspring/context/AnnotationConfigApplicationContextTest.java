@@ -143,7 +143,7 @@ public class AnnotationConfigApplicationContextTest {
         public int getSingletonCount() {
             return singletonBean.increment();
         }
-    }
+    }    
     
     @Test
     public void testAnnotationBasedContainer() {

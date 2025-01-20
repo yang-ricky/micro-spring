@@ -15,6 +15,8 @@ import org.microspring.stereotype.Service;
 import org.microspring.stereotype.Repository;
 import org.microspring.context.scope.ScopeManager;
 import org.microspring.context.scope.ObjectFactory;
+import org.microspring.beans.factory.annotation.Autowired;
+import org.microspring.beans.factory.annotation.Qualifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +26,8 @@ import java.util.Enumeration;
 import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public class AnnotationConfigApplicationContext extends AbstractApplicationContext {
     private String basePackage;
@@ -159,6 +163,8 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             private boolean lazyInit = false;
             private String initMethodName;
             private String destroyMethodName;
+            private final List<PropertyValue> propertyValues = new ArrayList<>();
+            private final List<ConstructorArg> constructorArgs = new ArrayList<>();
             
             @Override
             public Class<?> getBeanClass() {
@@ -198,27 +204,28 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             
             @Override
             public List<ConstructorArg> getConstructorArgs() {
-                return new ArrayList<>();
+                return this.constructorArgs;
             }
             
             @Override
             public List<PropertyValue> getPropertyValues() {
-                return new ArrayList<>();
+                return this.propertyValues;
             }
             
             @Override
             public void addConstructorArg(ConstructorArg arg) {
+                this.constructorArgs.add(arg);
             }
             
             @Override
             public void addPropertyValue(PropertyValue propertyValue) {
+                this.propertyValues.add(propertyValue);
             }
             
             @Override
             public boolean isLazyInit() {
-                // 检查@Lazy注解
                 Lazy lazy = clazz.getAnnotation(Lazy.class);
-                return lazy != null;  // 如果有@Lazy注解，就返回true
+                return lazy != null;
             }
             
             @Override
@@ -226,6 +233,59 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 this.lazyInit = lazyInit;
             }
         };
+        
+        // 处理字段注入的依赖关系
+        for (Field field : clazz.getDeclaredFields()) {
+            Autowired autowired = field.getAnnotation(Autowired.class);
+            if (autowired != null) {
+                String propertyName = field.getName();
+                Qualifier qualifier = field.getAnnotation(Qualifier.class);
+                
+                // 如果有@Qualifier注解，使用指定的名称
+                // 否则使用类型对应的默认bean名称（类名首字母小写）
+                String refName;
+                if (qualifier != null) {
+                    refName = qualifier.value();
+                } else {
+                    String targetClassName = field.getType().getSimpleName();
+                    refName = Character.toLowerCase(targetClassName.charAt(0)) + 
+                             targetClassName.substring(1);
+                }
+                
+                PropertyValue pv = new PropertyValue(propertyName, refName, field.getType(), true);
+                bd.addPropertyValue(pv);
+            }
+        }
+        
+        // 处理setter方法注入的依赖关系
+        for (Method method : clazz.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Autowired.class) && 
+                method.getName().startsWith("set") && 
+                method.getParameterCount() == 1) {
+                
+                String propertyName = method.getName().substring(3);
+                propertyName = Character.toLowerCase(propertyName.charAt(0)) + 
+                             propertyName.substring(1);
+                
+                Class<?> paramType = method.getParameterTypes()[0];
+                Qualifier qualifier = method.getAnnotation(Qualifier.class);
+                
+                // 如果有@Qualifier注解，使用指定的名称
+                // 否则使用类型对应的默认bean名称（类名首字母小写）
+                String refName;
+                if (qualifier != null) {
+                    refName = qualifier.value();
+                } else {
+                    String targetClassName = paramType.getSimpleName();
+                    refName = Character.toLowerCase(targetClassName.charAt(0)) + 
+                             targetClassName.substring(1);
+                }
+                
+                PropertyValue pv = new PropertyValue(propertyName, refName, paramType, true);
+                bd.addPropertyValue(pv);
+            }
+        }
+        
         beanFactory.registerBeanDefinition(beanName, bd);
     }
 

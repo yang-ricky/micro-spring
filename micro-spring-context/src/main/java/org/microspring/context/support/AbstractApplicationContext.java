@@ -95,35 +95,27 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     
     @Override
     public Object getBean(String name) {
-        BeanDefinition bd = beanFactory.getBeanDefinition(name);
-        
-        // 对于单例，先检查缓存
-        if (bd.isSingleton()) {
-            if (((DefaultBeanFactory)beanFactory).containsSingleton(name)) {
-                return beanFactory.getBean(name);
-            }
-            // 如果缓存中没有，创建并注入依赖
-            Object bean = beanFactory.getBean(name);
-            injectDependencies(bean);
-            return bean;
-        }
-        
-        // 对于非单例，每次都创建新实例并注入依赖
+        // 先从 beanFactory 获取 bean
         Object bean = beanFactory.getBean(name);
+        // 处理 @Value 注解
         injectDependencies(bean);
         return bean;
     }
     
     @Override
     public <T> T getBean(String name, Class<T> requiredType) {
+        // 先从 beanFactory 获取 bean
         T bean = beanFactory.getBean(name, requiredType);
+        // 处理 @Value 注解
         injectDependencies(bean);
         return bean;
     }
     
     @Override
     public <T> T getBean(Class<T> requiredType) {
+        // 先从 beanFactory 获取 bean
         T bean = beanFactory.getBean(requiredType);
+        // 处理 @Value 注解
         injectDependencies(bean);
         return bean;
     }
@@ -131,9 +123,8 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     protected void injectDependencies(Object bean) {
         Class<?> clazz = bean.getClass();
         
-        // 1. 处理字段注入
+        // 1. 处理 @Value 注解
         for (Field field : clazz.getDeclaredFields()) {
-            // 现有的字段注入代码保持不变
             Value valueAnn = field.getAnnotation(Value.class);
             if (valueAnn != null) {
                 String expression = valueAnn.value();
@@ -144,26 +135,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                     field.set(bean, convertedValue);
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException("Failed to inject @Value: " + expression, e);
-                }
-                continue;
-            }
-            
-            Autowired autowired = field.getAnnotation(Autowired.class);
-            if (autowired != null) {
-                Qualifier qualifier = field.getAnnotation(Qualifier.class);
-                Object valueToInject;
-                
-                if (qualifier != null) {
-                    valueToInject = getBean(qualifier.value());
-                } else {
-                    valueToInject = getBean(field.getType());
-                }
-                
-                try {
-                    field.setAccessible(true);
-                    field.set(bean, valueToInject);
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException("Failed to inject field: " + field, e);
                 }
             }
         }
@@ -188,9 +159,9 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                     }
                     
                     if (qualifier != null) {
-                        args[i] = getBean(qualifier.value());
+                        args[i] = beanFactory.getBean(qualifier.value());
                     } else {
-                        args[i] = getBean(paramTypes[i]);
+                        args[i] = beanFactory.getBean(paramTypes[i]);
                     }
                 }
                 
