@@ -317,35 +317,6 @@ public class DefaultBeanFactory implements BeanFactory {
             }
         }
     }
-    
-    private List<?> handleListValue(List<?> sourceList) {
-        List<Object> targetList = new ArrayList<>();
-        for (Object item : sourceList) {
-            if (item instanceof String) {
-                targetList.add(item);
-            }
-            // 可以添加其他类型的处理
-        }
-        return targetList;
-    }
-    
-    private Map<?, ?> handleMapValue(Map<?, ?> sourceMap) {
-        Map<Object, Object> targetMap = new HashMap<>();
-        for (Map.Entry<?, ?> entry : sourceMap.entrySet()) {
-            Object key = entry.getKey();
-            Object value = entry.getValue();
-            if (value instanceof String) {
-                // 处理数字类型
-                if (value.toString().matches("\\d+")) {
-                    targetMap.put(key, Integer.parseInt((String) value));
-                } else {
-                    targetMap.put(key, value);
-                }
-            }
-            // 可以添加其他类型的处理
-        }
-        return targetMap;
-    }
 
     public void loadBeanDefinitions(String xmlPath) {
         XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(this);
@@ -427,27 +398,6 @@ public class DefaultBeanFactory implements BeanFactory {
                     "No default constructor found for " + beanClass.getName(), e);
             }
         }
-    }
-
-    private Object createBeanUsingConstructorArgs(BeanDefinition bd) throws Exception {
-        List<ConstructorArg> args = bd.getConstructorArgs();
-        Class<?>[] paramTypes = new Class<?>[args.size()];
-        Object[] paramValues = new Object[args.size()];
-        
-        for (int i = 0; i < args.size(); i++) {
-            ConstructorArg arg = args.get(i);
-            if (arg.isRef()) {
-                paramValues[i] = getBean(arg.getRef());
-                paramTypes[i] = paramValues[i].getClass();
-            } else {
-                paramValues[i] = arg.getValue();
-                paramTypes[i] = arg.getType();
-            }
-        }
-        
-        Constructor<?> constructor = bd.getBeanClass().getDeclaredConstructor(paramTypes);
-        constructor.setAccessible(true);
-        return constructor.newInstance(paramValues);
     }
 
     public BeanDefinition getBeanDefinition(String name) {
