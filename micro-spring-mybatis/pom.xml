@@ -24,18 +24,21 @@
         <dependency>
             <groupId>org.microspring</groupId>
             <artifactId>micro-spring-core</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Micro Spring Context -->
         <dependency>
             <groupId>org.microspring</groupId>
             <artifactId>micro-spring-context</artifactId>
+            <version>${project.version}</version>
         </dependency>
         
-        <!-- Micro Spring ORM -->
+        <!-- Micro Spring JDBC -->
         <dependency>
             <groupId>org.microspring</groupId>
-            <artifactId>micro-spring-orm</artifactId>
+            <artifactId>micro-spring-jdbc</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Test dependencies -->
@@ -43,6 +46,13 @@
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>2.1.214</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <!-- 数据源配置 -->
+    <bean id="dataSource" class="org.microspring.jdbc.DriverManagerDataSource">
+        <property name="driverClassName" value="org.h2.Driver"/>
+        <property name="url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
+        <property name="username" value="sa"/>
+        <property name="password" value=""/>
+    </bean>
+    
+    <!-- JdbcTemplate配置 -->
+    <bean id="jdbcTemplate" class="org.microspring.jdbc.JdbcTemplate">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    
+    <!-- MyBatis SqlSessionFactory配置 -->
+    <bean id="sqlSessionFactory" class="org.microspring.mybatis.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    
+    <!-- 事务管理器配置 -->
+    <bean id="transactionManager" class="org.microspring.jdbc.transaction.JdbcTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    
+    <!-- Mapper扫描器配置 -->
+    <bean class="org.microspring.mybatis.MapperScannerConfigurer">
+        <property name="sqlSessionFactoryBean" ref="sqlSessionFactory"/>
+    </bean>
+    
+    <!-- 用户服务配置 -->
+    <bean id="userService" class="org.microspring.mybatis.MyBatisIntegrationTest$UserService">
+        <constructor-arg ref="userMapper"/>
+    </bean>
+</beans> 
