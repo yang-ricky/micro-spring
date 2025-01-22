@@ -52,7 +52,6 @@ public class TestRestController {
     
     @GetMapping("/users/{id}")
     public SimpleUser getUserById(@PathVariable("id") Long id) {
-        System.out.println("PathVariable id: " + id);
         return new SimpleUser(id, "User " + id);
     }
     
@@ -61,7 +60,6 @@ public class TestRestController {
         @PathVariable("userId") Long userId,
         @PathVariable("postId") Long postId
     ) {
-        System.out.println("PathVariable userId: " + userId + ", postId: " + postId);
         return new Post(userId, postId, "Post " + postId + " by User " + userId);
     }
     

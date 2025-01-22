@@ -148,44 +148,29 @@ public class ApplicationEventMulticasterTest {
         
         ApplicationContext mockContext = new MockApplicationContext();
         
-        System.out.println("\n=== Setting up listeners ===");
         class StartedEventListener implements ApplicationListener<ContextStartedEvent> {
             @Override
             public void onApplicationEvent(ContextStartedEvent event) {
-                System.out.println("StartedListener received event: " + event.getClass().getSimpleName());
                 events.add("ContextStartedEvent");
-                System.out.println("Current events after StartedListener: " + events);
             }
         }
         
         class GenericEventListener implements ApplicationListener<ApplicationEvent> {
             @Override
             public void onApplicationEvent(ApplicationEvent event) {
-                System.out.println("GenericListener received event: " + event.getClass().getSimpleName());
                 events.add("ApplicationEvent-" + event.getClass().getSimpleName());
-                System.out.println("Current events after GenericListener: " + events);
             }
         }
         
-        System.out.println("Adding startedListener");
         multicaster.addApplicationListener(new StartedEventListener());
-        System.out.println("Adding genericListener");
         multicaster.addApplicationListener(new GenericEventListener());
-        
-        System.out.println("\n=== Publishing events ===");
-        System.out.println("Publishing ContextStartedEvent");
+
         multicaster.multicastEvent(new ContextStartedEvent(mockContext));
         
-        System.out.println("\nEvents after first event: " + events);
-        
-        System.out.println("\nPublishing ContextRefreshedEvent");
+
         ContextRefreshedEvent refreshEvent = new ContextRefreshedEvent(mockContext);
         multicaster.multicastEvent(refreshEvent);
         
-        System.out.println("\nEvents after second event: " + events);
-        
-        System.out.println("\n=== Verification ===");
-        System.out.println("Final events list: " + events);
         assertEquals(3, events.size());  // startedListener处理一次，genericListener处理两次（一次处理ContextStartedEvent，一次处理ContextRefreshedEvent）
         assertTrue(events.contains("ContextStartedEvent"));
         assertTrue(events.contains("ApplicationEvent-ContextStartedEvent"));

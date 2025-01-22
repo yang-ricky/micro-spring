@@ -2,7 +2,7 @@ package org.microspring.context;
 
 import org.junit.Test;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
-import org.microspring.test.LazyComponent;
+import org.microspring.test.lazy.LazyComponent;
 import org.microspring.core.BeanDefinition;
 import static org.junit.Assert.*;
 import java.io.ByteArrayOutputStream;
@@ -18,10 +18,8 @@ public class LazyAnnotationTest {
         System.setOut(new PrintStream(outContent));
         
         try {
-            System.out.println("Before context initialization");
             AnnotationConfigApplicationContext context = 
-                new AnnotationConfigApplicationContext("org.microspring.test");
-            System.out.println("Context initialized");
+                new AnnotationConfigApplicationContext("org.microspring.test.lazy");
             
             // 验证在获取bean之前没有创建消息
             String outputBeforeGetBean = outContent.toString();
@@ -50,7 +48,8 @@ public class LazyAnnotationTest {
     
     @Test
     public void testGetAllBeansWithAnnotation() {
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("org.microspring.test");
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.lazy");
         
         // 先检查普通的 getBeansWithAnnotation
         Map<String, Object> nonLazyBeans = context.getBeansWithAnnotation(Component.class);

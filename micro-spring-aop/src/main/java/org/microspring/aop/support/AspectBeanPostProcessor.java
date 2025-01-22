@@ -23,7 +23,6 @@ public class AspectBeanPostProcessor implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) {
         if (bean.getClass().isAnnotationPresent(Aspect.class)) {
-            System.out.println("[DEBUG] Found aspect: " + bean.getClass().getSimpleName());
             aspects.add(bean);
             // 按order排序
             aspects.sort((a1, a2) -> {
@@ -40,7 +39,6 @@ public class AspectBeanPostProcessor implements BeanPostProcessor {
         if (!aspects.isEmpty() && !bean.getClass().isAnnotationPresent(Aspect.class)) {
             Class<?>[] interfaces = bean.getClass().getInterfaces();
             if (interfaces.length > 0) {
-                System.out.println("[DEBUG] Creating proxy for: " + beanName);
                 return createProxy(bean, interfaces);
             }
         }
@@ -54,19 +52,14 @@ public class AspectBeanPostProcessor implements BeanPostProcessor {
             new InvocationHandler() {
                 @Override
                 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                    System.out.println("[DEBUG] Invoking method: " + method.getName());
-                    System.out.println("[DEBUG] Number of aspects: " + aspects.size());
                     
                     // 按order顺序执行before方法
                     for (Object aspect : aspects) {
-                        System.out.println("[DEBUG] Executing aspect: " + aspect.getClass().getSimpleName());
                         try {
                             Method beforeMethod = aspect.getClass().getDeclaredMethod("before", Method.class, Object[].class);
                             beforeMethod.setAccessible(true);
                             beforeMethod.invoke(aspect, method, args);
                         } catch (Exception e) {
-                            System.err.println("[ERROR] Failed to invoke before method on aspect: " + 
-                                aspect.getClass().getSimpleName() + ", error: " + e.getMessage());
                             e.printStackTrace();
                         }
                     }

@@ -152,21 +152,15 @@ public class RepositoryTest {
         user1.setName("Test User");
         user1.setUsername("testuser");
         User saved1 = userRepository.save(user1);
-        System.out.println("Saved user1: " + saved1.getId() + ", " + saved1.getName() + ", " + saved1.getUsername());
         
         User user2 = new User();
         user2.setId(nextId());
         user2.setName("Test User");
         user2.setUsername("anotheruser");
         User saved2 = userRepository.save(user2);
-        System.out.println("Saved user2: " + saved2.getId() + ", " + saved2.getName() + ", " + saved2.getUsername());
         
         // 测试AND查询
         List<User> users = userRepository.findByNameAndUsername("Test User", "testuser");
-        System.out.println("Found users size: " + users.size());
-        if (!users.isEmpty()) {
-            System.out.println("Found user: " + users.get(0).getId() + ", " + users.get(0).getName() + ", " + users.get(0).getUsername());
-        }
         assertNotNull(users);
         assertEquals(1, users.size());
         assertEquals("testuser", users.get(0).getUsername());
@@ -388,7 +382,6 @@ public class RepositoryTest {
         long startTime = System.currentTimeMillis();
         List<User> savedUsers = userRepository.saveAll(users);
         long endTime = System.currentTimeMillis();
-        System.out.println("Batch save " + batchSize + " users took: " + (endTime - startTime) + "ms");
         assertEquals(batchSize, savedUsers.size());
         
         // 测试批量查询性能
@@ -398,7 +391,6 @@ public class RepositoryTest {
         startTime = System.currentTimeMillis();
         List<User> foundUsers = userRepository.findAllById(ids);
         endTime = System.currentTimeMillis();
-        System.out.println("Batch find " + batchSize + " users took: " + (endTime - startTime) + "ms");
         assertEquals(batchSize, foundUsers.size());
     }
 

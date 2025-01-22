@@ -44,8 +44,6 @@ public class QueryMethodParser {
         }
         
         String propertyPath = methodName.substring("findBy".length());
-        System.out.println("Method name: [" + methodName + "]");
-        System.out.println("Property path: [" + propertyPath + "]");
         
         StringBuilder queryBuilder = new StringBuilder("from ")
             .append(entityClass.getSimpleName())
@@ -85,7 +83,6 @@ public class QueryMethodParser {
             query += " #{orderBy}";
         }
         
-        System.out.println("Final query: [" + query + "]");
         return new QueryMethod(query, hasPageable);
     }
     
@@ -174,13 +171,11 @@ public class QueryMethodParser {
         private final boolean pageable;
         
         public QueryMethod(String queryString, boolean pageable) {
-            System.out.println("QueryMethod constructor received: [" + queryString + "]");
             this.queryString = queryString;
             this.pageable = pageable;
         }
         
         public String getQueryString() {
-            System.out.println("QueryMethod.getQueryString returning: [" + queryString + "]");
             return queryString;
         }
         

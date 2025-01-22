@@ -29,12 +29,8 @@ public class LoggingBeanPostProcessor implements BeanPostProcessor {
         if (bean.getClass().isAnnotationPresent(Loggable.class)) {
             Class<?>[] interfaces = bean.getClass().getInterfaces();
             if (interfaces.length == 0) {
-                System.out.println("[INFO] Bean '" + beanName + 
-                    "' using CGLIB proxy as it doesn't implement any interface");
                 return createCglibProxy(bean);
             }
-            System.out.println("[INFO] Bean '" + beanName + 
-                "' using JDK dynamic proxy as it implements interfaces");
             return createProxy(bean, interfaces);
         }
         return bean;
@@ -64,6 +60,7 @@ public class LoggingBeanPostProcessor implements BeanPostProcessor {
     }
 
     private Object createCglibProxy(final Object target) {
+        LogAdvice logAdvice = beanFactory.getBean("logAdvice", LogAdvice.class);
         Enhancer enhancer = new Enhancer();
         enhancer.setSuperclass(target.getClass());
         enhancer.setCallback(new MethodInterceptor() {
@@ -73,13 +70,11 @@ public class LoggingBeanPostProcessor implements BeanPostProcessor {
                 System.out.println("[LogAdvice(CGLIB)] Before method: " + method.getName());
                 try {
                     Object result = proxy.invokeSuper(obj, args);
-                    System.out.println("[LogAdvice(CGLIB)] After method: " + method.getName() + 
-                        " took " + System.nanoTime() + " ns");
+                    System.out.println("[LogAdvice(CGLIB)] After method: " + method.getName());
                     return result;
                 } catch (Exception e) {
                     Throwable targetException = e.getCause() != null ? e.getCause() : e;
-                    System.out.println("[LogAdvice(CGLIB)] Exception in method: " + 
-                        method.getName() + ": " + targetException.getMessage());
+                    System.out.println("[LogAdvice(CGLIB)] Exception in method: " + method.getName());
                     throw targetException;
                 }
             }

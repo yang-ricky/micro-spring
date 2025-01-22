@@ -27,10 +27,6 @@ public class TransactionProxyProcessor implements BeanPostProcessor {
     public Object postProcessAfterInitialization(Object bean, String beanName) {
         Class<?> beanClass = bean.getClass();
         
-        // 添加调试日志
-        System.out.println("Processing bean: " + beanName + ", class: " + beanClass.getName());
-        System.out.println("Has @Transactional: " + beanClass.isAnnotationPresent(Transactional.class));
-        
         // 检查类或方法是否有@Transactional注解
         if (!hasTransactionalAnnotation(beanClass)) {
             return bean;
@@ -68,7 +64,6 @@ public class TransactionProxyProcessor implements BeanPostProcessor {
         
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            System.out.println("Invoking method: " + method.getName());
             
             Transactional transactional = method.getAnnotation(Transactional.class);
             if (transactional == null) {
@@ -76,7 +71,6 @@ public class TransactionProxyProcessor implements BeanPostProcessor {
             }
             
             if (transactional == null) {
-                System.out.println("No transaction needed for: " + method.getName());
                 return method.invoke(target, args);
             }
             
@@ -86,16 +80,13 @@ public class TransactionProxyProcessor implements BeanPostProcessor {
             definition.setIsolationLevel(transactional.isolation());
             definition.setReadOnly(transactional.readOnly());
             
-            System.out.println("Starting transaction for: " + method.getName());
             TransactionStatus status = transactionManager.getTransaction(definition);
             
             try {
                 Object result = method.invoke(target, args);
-                System.out.println("Committing transaction for: " + method.getName());
                 transactionManager.commit(status);
                 return result;
             } catch (Throwable ex) {
-                System.out.println("Exception in transaction: " + ex.getMessage());
                 // 获取原始异常
                 Throwable actualException = ex;
                 if (ex instanceof java.lang.reflect.InvocationTargetException) {
@@ -103,10 +94,8 @@ public class TransactionProxyProcessor implements BeanPostProcessor {
                 }
                 
                 if (shouldRollback(transactional, actualException)) {
-                    System.out.println("Rolling back transaction for: " + method.getName());
                     transactionManager.rollback(status);
                 } else {
-                    System.out.println("Committing transaction despite exception for: " + method.getName());
                     transactionManager.commit(status);
                 }
                 throw actualException;

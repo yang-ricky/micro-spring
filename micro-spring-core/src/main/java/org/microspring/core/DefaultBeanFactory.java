@@ -11,6 +11,7 @@ import java.util.Set;
 import java.lang.reflect.Field;
 import java.lang.annotation.Annotation;
 import java.util.HashSet;
+import java.lang.reflect.Parameter;
 
 import org.microspring.core.io.XmlBeanDefinitionReader;
 import org.microspring.core.beans.ConstructorArg;
@@ -123,7 +124,7 @@ public class DefaultBeanFactory implements BeanFactory {
         singletonsCurrentlyInCreation.add(beanName);
         try {
             // 1. 实例化原始对象
-            Object rawBean = createBeanInstance(bd);
+            Object rawBean = createBeanInstance(beanName, bd);
 
             // 2. 如果是单例 -> 提前放到三级缓存(存一个 ObjectFactory)
             if (bd.isSingleton()) {
@@ -335,43 +336,50 @@ public class DefaultBeanFactory implements BeanFactory {
         reader.loadBeanDefinitions(xmlPath);
     }
 
-    protected Object createBeanInstance(BeanDefinition bd) throws Exception {
+    protected Object createBeanInstance(String targetBeanName, BeanDefinition bd) throws Exception {
         Class<?> beanClass = bd.getBeanClass();
         
         // 1. 如果有工厂方法，优先使用工厂方法创建
         Method factoryMethod = bd.getFactoryMethod();
         if (factoryMethod != null) {
             try {
-                System.out.println("[DEBUG] Creating bean using factory method: " + factoryMethod);
                 Class<?> factoryBeanClass = bd.getFactoryBeanClass();
-                System.out.println("[DEBUG] Factory bean class: " + factoryBeanClass);
                 
                 Object factoryBean = getBean(factoryBeanClass);
-                System.out.println("[DEBUG] Factory bean instance: " + factoryBean);
                 
                 // 处理工厂方法的参数
                 if (factoryMethod.getParameterCount() > 0) {
-                    System.out.println("[DEBUG] Factory method has parameters: " + factoryMethod.getParameterCount());
                     List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
-                    System.out.println("[DEBUG] Constructor args: " + constructorArgs);
                     Object[] args = new Object[factoryMethod.getParameterCount()];
                     
                     for (int i = 0; i < args.length; i++) {
                         ConstructorArg arg = constructorArgs.get(i);
-                        System.out.println("[DEBUG] Processing arg " + i + ": " + arg.getRef() + ", isRef: " + arg.isRef());
                         if (arg.isRef()) {
                             // 如果是引用类型，从容器中获取bean
                             args[i] = getBean(arg.getRef());
-                            System.out.println("[DEBUG] Resolved reference " + arg.getRef() + " to: " + args[i]);
                         } else {
                             // 如果是值类型，直接使用值
-                            args[i] = arg.getValue();
-                            System.out.println("[DEBUG] Using value: " + args[i]);
+                            Object value = arg.getValue();
+                            if (value != null) {
+                                args[i] = value;
+                            } else {
+                                Class<?> paramType = factoryMethod.getParameterTypes()[i];
+                                if (paramType == String.class) {
+                                    args[i] = "";  // 默认空字符串
+                                } else if (paramType == Integer.class || paramType == int.class) {
+                                    args[i] = 0;   // 默认0
+                                } else if (paramType == Long.class || paramType == long.class) {
+                                    args[i] = 0L;  // 默认0L
+                                } else if (paramType == Double.class || paramType == double.class) {
+                                    args[i] = 0.0; // 默认0.0
+                                } else if (paramType == Boolean.class || paramType == boolean.class) {
+                                    args[i] = false; // 默认false
+                                }
+                            }
                         }
                     }
                     return factoryMethod.invoke(factoryBean, args);
                 } else {
-                    System.out.println("[DEBUG] Invoking factory method without parameters");
                     return factoryMethod.invoke(factoryBean);
                 }
             } catch (Exception e) {
@@ -385,9 +393,48 @@ public class DefaultBeanFactory implements BeanFactory {
         }
         
         // 2. 如果没有工厂方法，使用构造函数创建
-        if (!bd.getConstructorArgs().isEmpty()) {
+        List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
+        
+        // 获取所有构造函数
+        Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
+        
+        // 首先尝试找到带有 @Autowired 注解的构造函数
+        Constructor<?> autowiredConstructor = null;
+        for (Constructor<?> constructor : constructors) {
+            if (constructor.isAnnotationPresent(Autowired.class)) {
+                autowiredConstructor = constructor;
+                break;
+            }
+        }
+        
+        // 如果找到了带 @Autowired 的构造函数，使用它
+        if (autowiredConstructor != null) {
+
+            Class<?>[] paramTypes = autowiredConstructor.getParameterTypes();
+            Object[] args = new Object[paramTypes.length];
+            
+            // 获取构造函数的参数
+            Parameter[] parameters = autowiredConstructor.getParameters();
+            for (int i = 0; i < parameters.length; i++) {
+                Parameter param = parameters[i];
+                Class<?> paramType = paramTypes[i];
+                
+                // 检查是否有 @Qualifier 注解
+                Qualifier qualifier = param.getAnnotation(Qualifier.class);
+                String beanName = qualifier != null ? qualifier.value() : 
+                    Character.toLowerCase(paramType.getSimpleName().charAt(0)) + 
+                    paramType.getSimpleName().substring(1);
+                args[i] = getBean(beanName);
+            }
+            
+            autowiredConstructor.setAccessible(true);
+            return autowiredConstructor.newInstance(args);
+        }
+        
+        // 如果没有找到 @Autowired 构造函数，但有构造函数参数，使用匹配的构造函数
+        if (!constructorArgs.isEmpty()) {
             // 检查构造器循环依赖
-            for (ConstructorArg arg : bd.getConstructorArgs()) {
+            for (ConstructorArg arg : constructorArgs) {
                 if (arg.isRef() && isInCreation(arg.getRef())) {
                     System.err.println("[CircularDependencyException] Circular dependency detected through constructor argument: " + arg.getRef());
                     throw new CircularDependencyException(
@@ -396,7 +443,6 @@ public class DefaultBeanFactory implements BeanFactory {
             }
             
             // 获取构造器参数
-            List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
             Object[] args = new Object[constructorArgs.size()];
             
             for (int i = 0; i < constructorArgs.size(); i++) {
@@ -404,13 +450,21 @@ public class DefaultBeanFactory implements BeanFactory {
                 if (constructorArg.isRef()) {
                     args[i] = getBean(constructorArg.getRef());
                 } else {
-                    args[i] = constructorArg.getValue();
+                    // 如果是值类型，直接使用值
+                    Object value = constructorArg.getValue();
+                    if (value != null) {
+                        args[i] = value;
+                    } else {
+                        // 只有在没有显式设置值且不是引用的情况下才使用默认值
+                        Constructor<?> constructor = constructors[0];
+                        Class<?> paramType = constructor.getParameterTypes()[i];
+                        args[i] = getDefaultValue(paramType);
+                    }
                 }
             }
             
             try {
                 // 查找匹配的构造器
-                Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
                 for (Constructor<?> constructor : constructors) {
                     if (constructor.getParameterCount() == args.length) {
                         Class<?>[] paramTypes = constructor.getParameterTypes();
@@ -435,15 +489,37 @@ public class DefaultBeanFactory implements BeanFactory {
                                         break;
                                     }
                                 } else if (!paramType.isAssignableFrom(argType)) {
-                                    matches = false;
-                                    break;
+                                    // 尝试类型转换
+                                    if (paramType == String.class) {
+                                        args[i] = arg.toString();
+                                    } else if ((paramType == Integer.class || paramType == int.class) && arg instanceof String) {
+                                        args[i] = Integer.parseInt((String) arg);
+                                    } else if ((paramType == Long.class || paramType == long.class) && arg instanceof String) {
+                                        args[i] = Long.parseLong((String) arg);
+                                    } else if ((paramType == Double.class || paramType == double.class) && arg instanceof String) {
+                                        args[i] = Double.parseDouble((String) arg);
+                                    } else if ((paramType == Boolean.class || paramType == boolean.class) && arg instanceof String) {
+                                        args[i] = Boolean.parseBoolean((String) arg);
+                                    } else {
+                                        matches = false;
+                                        break;
+                                    }
                                 }
                             }
                         }
                         
                         if (matches) {
                             constructor.setAccessible(true);
-                            return constructor.newInstance(args);
+                            try {
+                                return constructor.newInstance(args);
+                            } catch (Exception e) {
+                                System.err.println("Failed to create instance with args: ");
+                                for (int i = 0; i < args.length; i++) {
+                                    System.err.println("  arg[" + i + "] = " + args[i] + 
+                                                    " (type: " + (args[i] != null ? args[i].getClass().getName() : "null") + ")");
+                                }
+                                throw e;
+                            }
                         }
                     }
                 }
@@ -453,33 +529,17 @@ public class DefaultBeanFactory implements BeanFactory {
                 throw new CircularDependencyException(
                     "Error creating instance of " + beanClass.getName(), e);
             }
-        } else {
-            // XML 中没有配置构造器参数，但类可能有带参构造器
-            Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
-            if (constructors.length == 1) {
-                Constructor<?> constructor = constructors[0];
-                if (constructor.getParameterCount() > 0) {
-                    // 有参数的构造器
-                    constructor.setAccessible(true);
-                    Class<?>[] paramTypes = constructor.getParameterTypes();
-                    Object[] args = new Object[paramTypes.length];
-                    for (int i = 0; i < paramTypes.length; i++) {
-                        // 尝试获取依赖的 bean
-                        args[i] = getBean(paramTypes[i]);
-                    }
-                    return constructor.newInstance(args);
-                }
-            }
-            
-            // 尝试使用无参构造器
-            try {
-                Constructor<?> constructor = beanClass.getDeclaredConstructor();
-                constructor.setAccessible(true);
-                return constructor.newInstance();
-            } catch (NoSuchMethodException e) {
-                throw new CircularDependencyException(
-                    "No default constructor found for " + beanClass.getName(), e);
-            }
+        }
+        
+        // 3. 如果没有构造器参数，尝试使用无参构造器
+        try {
+            Constructor<?> constructor = beanClass.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+        } catch (NoSuchMethodException e) {
+            System.err.println("No default constructor found for " + beanClass.getName());
+            throw new CircularDependencyException(
+                "No suitable constructor found for " + beanClass.getName(), e);
         }
     }
 
@@ -738,5 +798,28 @@ public class DefaultBeanFactory implements BeanFactory {
             }
         }
         return false;
+    }
+
+    private Object getDefaultValue(Class<?> type) {
+        if (type == String.class) {
+            return "";
+        } else if (type == Integer.class || type == int.class) {
+            return 0;
+        } else if (type == Long.class || type == long.class) {
+            return 0L;
+        } else if (type == Double.class || type == double.class) {
+            return 0.0;
+        } else if (type == Boolean.class || type == boolean.class) {
+            return false;
+        } else if (type == Float.class || type == float.class) {
+            return 0.0f;
+        } else if (type == Short.class || type == short.class) {
+            return (short) 0;
+        } else if (type == Byte.class || type == byte.class) {
+            return (byte) 0;
+        } else if (type == Character.class || type == char.class) {
+            return '\u0000';
+        }
+        return null;
     }
 } 

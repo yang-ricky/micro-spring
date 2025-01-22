@@ -19,6 +19,7 @@ import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
 import org.microspring.context.annotation.Bean;
 import org.microspring.context.annotation.Configuration;
+import org.microspring.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +59,6 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     public void refresh() {
         if (basePackage != null) {
             // 1. 扫描组件
-            System.out.println("Scanning package: " + basePackage);
             scanPackages(basePackage);
             
             // 2. 注册 BeanPostProcessor 和监听器
@@ -135,9 +135,7 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                             }
                         }
                     } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        System.out.println("Warning: Could not load class: " + e.getMessage());
                     } catch (Exception e) {
-                        System.out.println("Warning: Error scanning class: " + e.getMessage());
                     }
                 }
             }
@@ -249,13 +247,21 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         // 处理工厂方法的参数
         if (method.getParameterCount() > 0) {
             Class<?>[] paramTypes = method.getParameterTypes();
+            java.lang.reflect.Parameter[] parameters = method.getParameters();
+            
             for (int i = 0; i < paramTypes.length; i++) {
                 Class<?> paramType = paramTypes[i];
+                Value valueAnn = parameters[i].getAnnotation(Value.class);
                 
-                // 如果是基本类型或String，作为值处理
-                if (paramType.isPrimitive() || paramType == String.class || 
+                // 如果参数有@Value注解
+                if (valueAnn != null) {
+                    String value = valueAnn.value();
+                    ConstructorArg arg = new ConstructorArg(null, value, paramType);
+                    bd.addConstructorArg(arg);
+                }
+                // 如果是基本类型或String，但没有@Value注解
+                else if (paramType.isPrimitive() || paramType == String.class || 
                     (paramType.getName().startsWith("java.lang") && paramType != Class.class)) {
-                    // 对于值类型，设置value为null（后续会被实际值替换）
                     ConstructorArg arg = new ConstructorArg(null, null, paramType);
                     bd.addConstructorArg(arg);
                 } else {

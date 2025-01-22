@@ -22,7 +22,6 @@ public class AspectTest {
     public static class TestService implements ITestService {
         @Override
         public String doSomething() {
-            System.out.println("TestService is doing something");
             return "done";
         }
     }
@@ -36,14 +35,12 @@ public class AspectTest {
         
         @Override
         public void afterReturning(Method method, Object result) {
-            System.out.println("[LoggingAspect] After method: " + method.getName() + 
-                ", result: " + result);
+            System.out.println("[LoggingAspect] After method: " + method.getName());
         }
         
         @Override
         public void afterThrowing(Method method, Exception ex) {
-            System.out.println("[LoggingAspect] Exception in method: " + method.getName() + 
-                ", error: " + ex.getMessage());
+            System.out.println("[LoggingAspect] Exception in method: " + method.getName());
         }
     }
     
@@ -60,8 +57,7 @@ public class AspectTest {
         @Override
         public void afterReturning(Method method, Object result) {
             long endTime = System.currentTimeMillis();
-            System.out.println("[Performance] Method: " + method.getName() + 
-                " took " + (endTime - startTime) + "ms");
+            System.out.println("[Performance] Method: " + method.getName() + " took " + (endTime - startTime) + "ms");
         }
     }
     
@@ -88,18 +84,12 @@ public class AspectTest {
             beanFactory.getBean("loggingAspect");
             beanFactory.getBean("performanceAspect");
             
-            // 打印调试信息
-            System.out.println("Registered aspects:");
-            System.out.println("- LoggingAspect");
-            System.out.println("- PerformanceAspect");
-            
             // 注册被代理的服务
             DefaultBeanDefinition serviceDef = new DefaultBeanDefinition(TestService.class);
             beanFactory.registerBeanDefinition("testService", serviceDef);
             
             // 获取并调用服务
             ITestService service = (ITestService) beanFactory.getBean("testService");
-            System.out.println("Calling service.doSomething()");
             service.doSomething();
             
             String output = outputStream.toString();

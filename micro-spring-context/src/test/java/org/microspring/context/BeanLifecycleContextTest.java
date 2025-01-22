@@ -4,48 +4,21 @@ import org.junit.Test;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
 import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.DefaultBeanDefinition;
-import org.microspring.core.aware.BeanNameAware;
+import org.microspring.test.lifecycle.OrderedBean;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.List;
 
 public class BeanLifecycleContextTest {
     
-    public static class OrderedBean implements BeanNameAware {
-        private static List<String> initializationOrder = new ArrayList<>();
-        private String beanName;
-        
-        @Override
-        public void setBeanName(String name) {
-            this.beanName = name;
-            initializationOrder.add("setBeanName:" + name);
-        }
-        
-        public void initMe() {
-            initializationOrder.add("init:" + beanName);
-        }
-        
-        public void cleanup() {
-            initializationOrder.add("cleanup:" + beanName);
-        }
-        
-        public static List<String> getInitializationOrder() {
-            return initializationOrder;
-        }
-        
-        public static void clearInitializationOrder() {
-            initializationOrder.clear();
-        }
-    }
-
     @Test
     public void testInitializationOrder() {
         OrderedBean.clearInitializationOrder();
         
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("org.microspring.test");
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.lifecycle");
         DefaultBeanFactory beanFactory = (DefaultBeanFactory) context.getBeanFactory();
         
         // 注册两个OrderedBean
@@ -71,7 +44,8 @@ public class BeanLifecycleContextTest {
     public void testDestroyOrder() {
         OrderedBean.clearInitializationOrder();
         
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("org.microspring.test");
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.lifecycle");
         DefaultBeanFactory beanFactory = (DefaultBeanFactory) context.getBeanFactory();
         
         // 注册两个带销毁方法的Bean
@@ -99,7 +73,8 @@ public class BeanLifecycleContextTest {
     
     @Test
     public void testLifecycleInApplicationContext() {
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("org.microspring.test");
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.lifecycle");
         DefaultBeanFactory beanFactory = (DefaultBeanFactory) context.getBeanFactory();
         
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -130,7 +105,8 @@ public class BeanLifecycleContextTest {
     public void testContextRefreshOrder() {
         OrderedBean.clearInitializationOrder();
         
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("org.microspring.test");
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.lifecycle");
         DefaultBeanFactory beanFactory = (DefaultBeanFactory) context.getBeanFactory();
         
         // 注册多个Bean测试初始化顺序

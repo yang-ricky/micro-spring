@@ -39,21 +39,16 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
         List<ApplicationListener<?>> listeners = getApplicationListeners(event);
         
         for (ApplicationListener<?> listener : listeners) {
-            System.out.println("\nProcessing listener: " + listener.getClass().getSimpleName());
             if (shouldHandleAsynchronously(listener)) {
-                System.out.println("Handling asynchronously");
                 if (taskExecutor != null) {
                     taskExecutor.execute(() -> invokeListener(listener, event));
                 } else {
-                    System.out.println("No task executor, falling back to sync processing");
                     invokeListener(listener, event);
                 }
             } else {
-                System.out.println("Handling synchronously");
                 invokeListener(listener, event);
             }
         }
-        System.out.println("=== Event multicasting completed ===\n");
     }
 
     protected List<ApplicationListener<?>> getApplicationListeners(ApplicationEvent event) {
@@ -79,13 +74,9 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
     @SuppressWarnings("unchecked")
     protected void invokeListener(ApplicationListener listener, ApplicationEvent event) {
         try {
-            System.out.println("Attempting to invoke listener: " + listener.getClass().getSimpleName());
             if (supportsEvent(listener, event)) {
-                System.out.println("Listener supports event, invoking...");
                 listener.onApplicationEvent(event);
-            } else {
-                System.out.println("Listener does not support event, skipping");
-            }
+            } 
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Failed to invoke event listener", e);
@@ -96,7 +87,6 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
         Class<?> eventType = getEventType(listener);
 
         if (eventType == null) {
-            System.out.println("No event type found for listener, returning false");
             return false;
         }
 
@@ -105,7 +95,6 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
         if (supports) {
             Class<?> currentClass = event.getClass();
             while (currentClass != null) {
-                System.out.println(" - " + currentClass.getName());
                 currentClass = currentClass.getSuperclass();
             }
         }
@@ -119,13 +108,9 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
         for (Type type : genericInterfaces) {
             if (type instanceof ParameterizedType) {
                 ParameterizedType paramType = (ParameterizedType) type;
-                System.out.println("Found parameterized type: " + paramType);
-                System.out.println("Raw type: " + paramType.getRawType());
                 if (ApplicationListener.class.equals(paramType.getRawType())) {
                     Type[] typeArguments = paramType.getActualTypeArguments();
-                    System.out.println("Type arguments: " + Arrays.toString(typeArguments));
                     if (typeArguments != null && typeArguments.length > 0) {
-                        System.out.println("Returning event type: " + typeArguments[0]);
                         return (Class<?>) typeArguments[0];
                     }
                 }

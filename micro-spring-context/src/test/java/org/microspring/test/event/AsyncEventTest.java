@@ -51,7 +51,6 @@ public class AsyncEventTest {
                 Thread.currentThread().interrupt();
             }
             eventProcessed = true;
-            System.out.println("Async event processed in thread: " + Thread.currentThread().getName());
         }
         
         public boolean isEventProcessed() {

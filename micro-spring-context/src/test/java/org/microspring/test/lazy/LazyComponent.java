@@ -1,4 +1,4 @@
-package org.microspring.test;
+package org.microspring.test.lazy;
 
 import org.microspring.beans.factory.annotation.Lazy;
 import org.microspring.stereotype.Component;

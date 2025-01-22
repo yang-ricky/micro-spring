@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import org.microspring.beans.factory.annotation.Autowired;
 import java.sql.ResultSet;
 import org.microspring.jdbc.RowMapper;
+import org.microspring.beans.factory.annotation.Qualifier;
 
 @Component("transactionalUserService")
 @Transactional
@@ -13,7 +14,7 @@ public class TransactionalUserService implements ITransactionalUserService {
     private final JdbcTemplate jdbcTemplate;
     
     @Autowired
-    public TransactionalUserService(JdbcTemplate jdbcTemplate) {
+    public TransactionalUserService(@Qualifier("testJdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
     

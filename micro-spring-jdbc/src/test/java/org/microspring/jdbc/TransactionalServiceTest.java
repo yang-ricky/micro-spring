@@ -9,6 +9,7 @@ import org.microspring.transaction.support.AbstractPlatformTransactionManager;
 import org.microspring.jdbc.transaction.JdbcTransactionManager;
 import java.sql.SQLException;
 import static org.junit.Assert.*;
+import org.microspring.beans.factory.annotation.Qualifier;
 
 public class TransactionalServiceTest {
     
@@ -24,7 +25,7 @@ public class TransactionalServiceTest {
     @Component
     public static class TestJdbcTemplate extends JdbcTemplate {
         @Autowired
-        public TestJdbcTemplate(DataSource dataSource) {
+        public TestJdbcTemplate(@Qualifier("testDataSource") DataSource dataSource) {
             setDataSource(dataSource);
         }
     }
@@ -32,7 +33,8 @@ public class TransactionalServiceTest {
     @Component
     public static class TestTransactionManager extends JdbcTransactionManager {
         @Autowired
-        public TestTransactionManager(DataSource dataSource, JdbcTemplate jdbcTemplate) {
+        public TestTransactionManager(@Qualifier("testDataSource") DataSource dataSource, 
+                                    @Qualifier("testJdbcTemplate") JdbcTemplate jdbcTemplate) {
             super(dataSource);
             jdbcTemplate.setTransactionManager(this);
         }
@@ -41,7 +43,7 @@ public class TransactionalServiceTest {
     @Component
     public static class TestTransactionProxyProcessor extends TransactionProxyProcessor {
         @Autowired
-        public TestTransactionProxyProcessor(AbstractPlatformTransactionManager transactionManager) {
+        public TestTransactionProxyProcessor(@Qualifier("testTransactionManager") AbstractPlatformTransactionManager transactionManager) {
             super(transactionManager);
         }
     }
@@ -51,7 +53,7 @@ public class TransactionalServiceTest {
         private final JdbcTemplate jdbcTemplate;
         
         @Autowired
-        public TestTableInitializer(JdbcTemplate jdbcTemplate) {
+        public TestTableInitializer(@Qualifier("testJdbcTemplate") JdbcTemplate jdbcTemplate) {
             this.jdbcTemplate = jdbcTemplate;
             try {
                 init();

@@ -2,12 +2,14 @@ package org.microspring.context;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
+
 import org.microspring.context.annotation.Bean;
 import org.microspring.context.annotation.Configuration;
 import org.microspring.beans.factory.annotation.Scope;
 import org.microspring.beans.factory.annotation.Value;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
 
+//ricky test
 public class ConfigurationAnnotationTest {
     
     @Configuration
@@ -28,9 +30,10 @@ public class ConfigurationAnnotationTest {
             return new TestController(testService);
         }
 
-        //@Bean
-        public Person basicValue() {
-            return new Person("testmessage", 24);
+
+        @Bean
+        public Person basicValue(@Value("testmessage") String message, @Value("24") Integer age){
+            return new Person(message, age);
         }
 
         static class Person {
@@ -212,7 +215,10 @@ public class ConfigurationAnnotationTest {
         AnnotationConfigApplicationContext context = 
             new AnnotationConfigApplicationContext("org.microspring.context");
         
-        //org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person holder = context.getBean("basicValue", org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person.class);
-        //assertNotNull("StringHolder should not be null", holder);
+        org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person person = context.getBean("basicValue", org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person.class);
+        
+        assertNotNull("StringHolder should not be null", person);
+        assertEquals(Integer.valueOf(24), person.getAge());
+        assertEquals("testmessage", person.getMessage());
     }
 } 

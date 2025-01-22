@@ -25,13 +25,11 @@ public class BeanPostProcessorTest {
     public static class TestBeanPostProcessor implements BeanPostProcessor {
         @Override
         public Object postProcessBeforeInitialization(Object bean, String beanName) {
-            ///System.out.println("Before initialization of bean: " + beanName);
             return bean;
         }
         
         @Override
         public Object postProcessAfterInitialization(Object bean, String beanName) {
-            //System.out.println("After initialization of bean: " + beanName);
             if (bean instanceof TestBean) {
                 ((TestBean) bean).setMessage("processed");
             }
