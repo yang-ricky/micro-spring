@@ -17,6 +17,8 @@ import org.microspring.context.scope.ScopeManager;
 import org.microspring.context.scope.ObjectFactory;
 import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.beans.factory.annotation.Qualifier;
+import org.microspring.context.annotation.Bean;
+import org.microspring.context.annotation.Configuration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,11 +113,26 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                             file.getName().substring(0, file.getName().length() - 6);
                         Class<?> clazz = Class.forName(className);
                         
+                        // 跳过注解类
+                        if (clazz.isAnnotation()) {
+                            continue;
+                        }
+                        
                         // 检查是否有构造型注解
-                        if (clazz.isAnnotationPresent(Component.class) ||
-                            clazz.isAnnotationPresent(Service.class) ||
-                            clazz.isAnnotationPresent(Repository.class)) {
-                            registerBean(clazz);
+                        Component componentAnn = clazz.getAnnotation(Component.class);
+                        Service serviceAnn = clazz.getAnnotation(Service.class);
+                        Repository repositoryAnn = clazz.getAnnotation(Repository.class);
+                        Configuration configAnn = clazz.getAnnotation(Configuration.class);
+                        
+                        if (componentAnn != null || serviceAnn != null || 
+                            repositoryAnn != null || configAnn != null) {
+                            
+                            // 如果是配置类，处理其中的@Bean方法
+                            if (configAnn != null) {
+                                processConfigurationClass(clazz);
+                            } else {
+                                registerBean(clazz);
+                            }
                         }
                     } catch (ClassNotFoundException | NoClassDefFoundError e) {
                         System.out.println("Warning: Could not load class: " + e.getMessage());
@@ -125,6 +142,120 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 }
             }
         }
+    }
+
+    private void processConfigurationClass(Class<?> configClass) {
+        // 首先注册配置类本身
+        registerBean(configClass);
+        
+        // 处理所有带有@Bean注解的方法
+        for (Method method : configClass.getDeclaredMethods()) {
+            Bean beanAnn = method.getAnnotation(Bean.class);
+            if (beanAnn != null) {
+                String beanName = determineBeanName(beanAnn, method);
+                registerBeanMethod(beanName, method, configClass);
+            }
+        }
+    }
+
+    private String determineBeanName(Bean beanAnn, Method method) {
+        // 如果@Bean注解指定了名称，使用指定的名称
+        String[] names = beanAnn.value();
+        if (names.length > 0 && !names[0].isEmpty()) {
+            return names[0];
+        }
+        // 否则使用方法名作为bean名称
+        return method.getName();
+    }
+
+    private void registerBeanMethod(String beanName, Method method, Class<?> configClass) {
+        BeanDefinition bd = new BeanDefinition() {
+            private boolean lazyInit = false;
+            private String initMethodName;
+            private String destroyMethodName;
+            private final List<PropertyValue> propertyValues = new ArrayList<>();
+            private final List<ConstructorArg> constructorArgs = new ArrayList<>();
+            
+            @Override
+            public Class<?> getBeanClass() {
+                return method.getReturnType();
+            }
+            
+            @Override
+            public String getScope() {
+                Scope scope = method.getAnnotation(Scope.class);
+                return scope != null ? scope.value() : "singleton";
+            }
+            
+            @Override
+            public boolean isSingleton() {
+                return "singleton".equals(getScope());
+            }
+            
+            @Override
+            public String getInitMethodName() {
+                Bean bean = method.getAnnotation(Bean.class);
+                return bean != null && !bean.initMethod().isEmpty() ? bean.initMethod() : null;
+            }
+            
+            @Override
+            public void setInitMethodName(String initMethodName) {
+                this.initMethodName = initMethodName;
+            }
+            
+            @Override
+            public String getDestroyMethodName() {
+                Bean bean = method.getAnnotation(Bean.class);
+                return bean != null && !bean.destroyMethod().equals("(inferred)") ? bean.destroyMethod() : null;
+            }
+            
+            @Override
+            public void setDestroyMethodName(String destroyMethodName) {
+                this.destroyMethodName = destroyMethodName;
+            }
+            
+            @Override
+            public List<ConstructorArg> getConstructorArgs() {
+                return this.constructorArgs;
+            }
+            
+            @Override
+            public List<PropertyValue> getPropertyValues() {
+                return this.propertyValues;
+            }
+            
+            @Override
+            public void addConstructorArg(ConstructorArg arg) {
+                this.constructorArgs.add(arg);
+            }
+            
+            @Override
+            public void addPropertyValue(PropertyValue propertyValue) {
+                this.propertyValues.add(propertyValue);
+            }
+            
+            @Override
+            public boolean isLazyInit() {
+                Lazy lazy = method.getAnnotation(Lazy.class);
+                return lazy != null;
+            }
+            
+            @Override
+            public void setLazyInit(boolean lazyInit) {
+                this.lazyInit = lazyInit;
+            }
+        };
+        
+        // 为方法参数添加构造器参数
+        Class<?>[] paramTypes = method.getParameterTypes();
+        for (int i = 0; i < paramTypes.length; i++) {
+            String paramBeanName = Character.toLowerCase(paramTypes[i].getSimpleName().charAt(0)) + 
+                                 paramTypes[i].getSimpleName().substring(1);
+            ConstructorArg arg = new ConstructorArg(paramBeanName, null, paramTypes[i]);
+            bd.addConstructorArg(arg);
+        }
+        
+        beanFactory.registerBeanDefinition(beanName, bd);
     }
 
     private void registerBean(Class<?> clazz) {
