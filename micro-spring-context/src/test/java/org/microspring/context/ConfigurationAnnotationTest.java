@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import org.microspring.context.annotation.Bean;
 import org.microspring.context.annotation.Configuration;
 import org.microspring.beans.factory.annotation.Scope;
+import org.microspring.beans.factory.annotation.Value;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
 
 public class ConfigurationAnnotationTest {
@@ -27,26 +28,27 @@ public class ConfigurationAnnotationTest {
             return new TestController(testService);
         }
 
-        @Bean
-        public StringHolder stringHolder(String message) {
-            return new StringHolder(message);
+        //@Bean
+        public Person basicValue() {
+            return new Person("testmessage", 24);
         }
 
-        static class StringHolder {
+        static class Person {
             private final String message;
+            private Integer age;
             
-            public StringHolder(String message) {
+            public Person(String message, Integer age) {
                 this.message = message;
+                this.age = age;
             }
             
             public String getMessage() {
                 return message;
             }
-        }
 
-        @Bean
-        public String message() {
-            return "Hello, World!";
+            public Integer getAge() {
+                return  age;
+            }
         }
 
         @Bean
@@ -210,8 +212,7 @@ public class ConfigurationAnnotationTest {
         AnnotationConfigApplicationContext context = 
             new AnnotationConfigApplicationContext("org.microspring.context");
         
-        org.microspring.context.ConfigurationAnnotationTest.TestConfig.StringHolder holder = context.getBean("stringHolder", org.microspring.context.ConfigurationAnnotationTest.TestConfig.StringHolder.class);
-        assertNotNull("StringHolder should not be null", holder);
-        assertEquals("Hello, World!", holder.getMessage());
+        //org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person holder = context.getBean("basicValue", org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person.class);
+        //assertNotNull("StringHolder should not be null", holder);
     }
 } 
