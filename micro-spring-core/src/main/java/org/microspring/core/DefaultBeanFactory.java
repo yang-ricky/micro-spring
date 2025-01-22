@@ -338,7 +338,53 @@ public class DefaultBeanFactory implements BeanFactory {
     protected Object createBeanInstance(BeanDefinition bd) throws Exception {
         Class<?> beanClass = bd.getBeanClass();
         
-        // 如果有构造器参数
+        // 1. 如果有工厂方法，优先使用工厂方法创建
+        Method factoryMethod = bd.getFactoryMethod();
+        if (factoryMethod != null) {
+            try {
+                System.out.println("[DEBUG] Creating bean using factory method: " + factoryMethod);
+                Class<?> factoryBeanClass = bd.getFactoryBeanClass();
+                System.out.println("[DEBUG] Factory bean class: " + factoryBeanClass);
+                
+                Object factoryBean = getBean(factoryBeanClass);
+                System.out.println("[DEBUG] Factory bean instance: " + factoryBean);
+                
+                // 处理工厂方法的参数
+                if (factoryMethod.getParameterCount() > 0) {
+                    System.out.println("[DEBUG] Factory method has parameters: " + factoryMethod.getParameterCount());
+                    List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
+                    System.out.println("[DEBUG] Constructor args: " + constructorArgs);
+                    Object[] args = new Object[factoryMethod.getParameterCount()];
+                    
+                    for (int i = 0; i < args.length; i++) {
+                        ConstructorArg arg = constructorArgs.get(i);
+                        System.out.println("[DEBUG] Processing arg " + i + ": " + arg.getRef() + ", isRef: " + arg.isRef());
+                        if (arg.isRef()) {
+                            // 如果是引用类型，从容器中获取bean
+                            args[i] = getBean(arg.getRef());
+                            System.out.println("[DEBUG] Resolved reference " + arg.getRef() + " to: " + args[i]);
+                        } else {
+                            // 如果是值类型，直接使用值
+                            args[i] = arg.getValue();
+                            System.out.println("[DEBUG] Using value: " + args[i]);
+                        }
+                    }
+                    return factoryMethod.invoke(factoryBean, args);
+                } else {
+                    System.out.println("[DEBUG] Invoking factory method without parameters");
+                    return factoryMethod.invoke(factoryBean);
+                }
+            } catch (Exception e) {
+                System.err.println("[BeanCreationException] Failed to invoke factory method [" + factoryMethod.getName() 
+                    + "] for bean [" + beanClass.getName() + "]");
+                System.err.println("Root cause: " + e.getMessage());
+                e.printStackTrace();
+                throw new BeanCreationException(beanClass.getName(), 
+                    "Failed to invoke factory method [" + factoryMethod.getName() + "]", e);
+            }
+        }
+        
+        // 2. 如果没有工厂方法，使用构造函数创建
         if (!bd.getConstructorArgs().isEmpty()) {
             // 检查构造器循环依赖
             for (ConstructorArg arg : bd.getConstructorArgs()) {
@@ -367,12 +413,37 @@ public class DefaultBeanFactory implements BeanFactory {
                 Constructor<?>[] constructors = beanClass.getDeclaredConstructors();
                 for (Constructor<?> constructor : constructors) {
                     if (constructor.getParameterCount() == args.length) {
-                        try {
+                        Class<?>[] paramTypes = constructor.getParameterTypes();
+                        boolean matches = true;
+                        for (int i = 0; i < paramTypes.length; i++) {
+                            Object arg = args[i];
+                            if (arg != null) {
+                                Class<?> paramType = paramTypes[i];
+                                Class<?> argType = arg.getClass();
+                                
+                                // 处理基本类型和包装类型的匹配
+                                if (paramType.isPrimitive()) {
+                                    // 如果参数是基本类型，检查arg是否是对应的包装类型
+                                    if (!isAssignableFromPrimitive(argType, paramType)) {
+                                        matches = false;
+                                        break;
+                                    }
+                                } else if (argType.isPrimitive()) {
+                                    // 如果arg是基本类型，检查参数是否是对应的包装类型
+                                    if (!isAssignableFromPrimitive(paramType, argType)) {
+                                        matches = false;
+                                        break;
+                                    }
+                                } else if (!paramType.isAssignableFrom(argType)) {
+                                    matches = false;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (matches) {
                             constructor.setAccessible(true);
                             return constructor.newInstance(args);
-                        } catch (Exception e) {
-                            // 如果参数类型不匹配，继续尝试下一个构造器
-                            continue;
                         }
                     }
                 }
@@ -568,5 +639,104 @@ public class DefaultBeanFactory implements BeanFactory {
 
     public boolean containsSingleton(String name) {
         return singletonObjects.containsKey(name);
+    }
+
+    protected void registerBean(Class<?> beanClass) {
+        String beanName = Character.toLowerCase(beanClass.getSimpleName().charAt(0)) + 
+                         beanClass.getSimpleName().substring(1);
+        
+        // 创建BeanDefinition
+        BeanDefinition bd = new BeanDefinition() {
+            private boolean lazyInit = false;
+            private String initMethodName;
+            private String destroyMethodName;
+            private final List<PropertyValue> propertyValues = new ArrayList<>();
+            private final List<ConstructorArg> constructorArgs = new ArrayList<>();
+            
+            @Override
+            public Class<?> getBeanClass() {
+                return beanClass;
+            }
+            
+            @Override
+            public String getScope() {
+                return "singleton";
+            }
+            
+            @Override
+            public boolean isSingleton() {
+                return true;
+            }
+            
+            @Override
+            public String getInitMethodName() {
+                return initMethodName;
+            }
+            
+            @Override
+            public void setInitMethodName(String initMethodName) {
+                this.initMethodName = initMethodName;
+            }
+            
+            @Override
+            public String getDestroyMethodName() {
+                return destroyMethodName;
+            }
+            
+            @Override
+            public void setDestroyMethodName(String destroyMethodName) {
+                this.destroyMethodName = destroyMethodName;
+            }
+            
+            @Override
+            public List<ConstructorArg> getConstructorArgs() {
+                return constructorArgs;
+            }
+            
+            @Override
+            public List<PropertyValue> getPropertyValues() {
+                return propertyValues;
+            }
+            
+            @Override
+            public void addConstructorArg(ConstructorArg arg) {
+                constructorArgs.add(arg);
+            }
+            
+            @Override
+            public void addPropertyValue(PropertyValue propertyValue) {
+                propertyValues.add(propertyValue);
+            }
+            
+            @Override
+            public boolean isLazyInit() {
+                return lazyInit;
+            }
+            
+            @Override
+            public void setLazyInit(boolean lazyInit) {
+                this.lazyInit = lazyInit;
+            }
+        };
+        
+        registerBeanDefinition(beanName, bd);
+    }
+
+    private boolean isAssignableFromPrimitive(Class<?> from, Class<?> to) {
+        if (from.isPrimitive()) {
+            if (to.isPrimitive()) {
+                return from == to;
+            } else {
+                return from == boolean.class && to == Boolean.class ||
+                       from == char.class && to == Character.class ||
+                       from == byte.class && to == Byte.class ||
+                       from == short.class && to == Short.class ||
+                       from == int.class && to == Integer.class ||
+                       from == long.class && to == Long.class ||
+                       from == float.class && to == Float.class ||
+                       from == double.class && to == Double.class;
+            }
+        }
+        return false;
     }
 } 

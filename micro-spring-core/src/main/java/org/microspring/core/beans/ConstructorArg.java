@@ -18,5 +18,9 @@ public class ConstructorArg {
     public String getRef() { return ref; }
     public Object getValue() { return value; }
     public Class<?> getType() { return type; }
-    public boolean isRef() { return ref != null && !ref.isEmpty(); }
+    
+    public boolean isRef() { 
+        // 只要有ref就是引用类型，否则就是值类型
+        return ref != null && !ref.isEmpty();
+    }
 } 

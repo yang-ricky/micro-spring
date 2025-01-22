@@ -246,13 +246,26 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             }
         };
         
-        // 为方法参数添加构造器参数
-        Class<?>[] paramTypes = method.getParameterTypes();
-        for (int i = 0; i < paramTypes.length; i++) {
-            String paramBeanName = Character.toLowerCase(paramTypes[i].getSimpleName().charAt(0)) + 
-                                 paramTypes[i].getSimpleName().substring(1);
-            ConstructorArg arg = new ConstructorArg(paramBeanName, null, paramTypes[i]);
-            bd.addConstructorArg(arg);
+        // 处理工厂方法的参数
+        if (method.getParameterCount() > 0) {
+            Class<?>[] paramTypes = method.getParameterTypes();
+            for (int i = 0; i < paramTypes.length; i++) {
+                Class<?> paramType = paramTypes[i];
+                
+                // 如果是基本类型或String，作为值处理
+                if (paramType.isPrimitive() || paramType == String.class || 
+                    (paramType.getName().startsWith("java.lang") && paramType != Class.class)) {
+                    // 对于值类型，设置value为null（后续会被实际值替换）
+                    ConstructorArg arg = new ConstructorArg(null, null, paramType);
+                    bd.addConstructorArg(arg);
+                } else {
+                    // 对于引用类型，设置ref为bean名称
+                    String refName = Character.toLowerCase(paramType.getSimpleName().charAt(0)) + 
+                                   paramType.getSimpleName().substring(1);
+                    ConstructorArg arg = new ConstructorArg(refName, null, paramType);
+                    bd.addConstructorArg(arg);
+                }
+            }
         }
         
         beanFactory.registerBeanDefinition(beanName, bd);

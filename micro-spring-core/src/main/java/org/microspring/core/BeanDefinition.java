@@ -3,6 +3,7 @@ package org.microspring.core;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
 import java.util.List;
+import java.lang.reflect.Method;
 
 /**
  * Bean定义信息的抽象
@@ -69,4 +70,18 @@ public interface BeanDefinition {
      * 设置销毁方法名
      */
     void setDestroyMethodName(String destroyMethodName);
+
+    /**
+     * 获取工厂方法
+     */
+    default Method getFactoryMethod() {
+        return null;
+    }
+
+    /**
+     * 获取工厂Bean的类型
+     */
+    default Class<?> getFactoryBeanClass() {
+        return null;
+    }
 } 

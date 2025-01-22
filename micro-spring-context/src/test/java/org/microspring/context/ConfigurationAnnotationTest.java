@@ -28,6 +28,28 @@ public class ConfigurationAnnotationTest {
         }
 
         @Bean
+        public StringHolder stringHolder(String message) {
+            return new StringHolder(message);
+        }
+
+        static class StringHolder {
+            private final String message;
+            
+            public StringHolder(String message) {
+                this.message = message;
+            }
+            
+            public String getMessage() {
+                return message;
+            }
+        }
+
+        @Bean
+        public String message() {
+            return "Hello, World!";
+        }
+
+        @Bean
         @Scope("prototype")
         public PrototypeBean prototypeBean() {
             return new PrototypeBean();
@@ -102,6 +124,7 @@ public class ConfigurationAnnotationTest {
     }
     
     static class CustomNameBean {}
+    
     
     @Test
     public void testConfigurationAndBeanAnnotations() {
@@ -180,5 +203,15 @@ public class ConfigurationAnnotationTest {
         
         TestConfig config = context.getBean(TestConfig.class);
         assertNotNull("Configuration class should be registered as bean", config);
+    }
+
+    @Test
+    public void testBeanMethodWithStringParameter() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.context");
+        
+        org.microspring.context.ConfigurationAnnotationTest.TestConfig.StringHolder holder = context.getBean("stringHolder", org.microspring.context.ConfigurationAnnotationTest.TestConfig.StringHolder.class);
+        assertNotNull("StringHolder should not be null", holder);
+        assertEquals("Hello, World!", holder.getMessage());
     }
 } 
