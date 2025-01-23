@@ -4,43 +4,10 @@ import org.junit.Test;
 import org.microspring.beans.factory.annotation.Value;
 import org.microspring.stereotype.Component;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
+import org.microspring.test.value.SimpleValueBean;
 import static org.junit.Assert.*;
 
 public class ValueAnnotationTest {
-    
-    @Component
-    public static class SimpleValueBean {
-        // private String constructorValue;
-
-        // public SimpleValueBean(@Value("constructorValue") String constructorValue) {
-        //     this.constructorValue = constructorValue;
-        // }
-
-        // public String getConstructorValue() {
-        //     return constructorValue;
-        // }
-
-        @Value("${app.name:defaultName}")
-        private String stringWithDefault;
-        
-        @Value("${app.name}")
-        private String stringWithoutDefault;
-        
-        @Value("${app.port:8080}")
-        private int intWithDefault;
-
-        @Value("const")
-        private String intWithStringConst;
-
-        @Value("8080")
-        private int intWithIntConst;
-        
-        public String getStringWithDefault() { return stringWithDefault; }
-        public String getStringWithoutDefault() { return stringWithoutDefault; }
-        public int getIntWithDefault() { return intWithDefault; }
-        public String getIntWithStringConst() { return intWithStringConst; }
-        public int getIntWithIntConst() { return intWithIntConst; }
-    }
     
     @Test
     public void testPropertyResolution() {
@@ -49,11 +16,15 @@ public class ValueAnnotationTest {
         System.setProperty("app.port", "9090");
         
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.value");
         
         SimpleValueBean bean = context.getBean(SimpleValueBean.class);
         assertNotNull("Bean should not be null", bean);
         
+        // 测试构造器值
+        assertEquals("Constructor value should be resolved", 
+            "constructorValue", bean.getConstructorValue());
+            
         // 测试属性解析（有默认值）
         assertEquals("Property with value should override default", 
             "TestApp", bean.getStringWithDefault());
@@ -66,14 +37,18 @@ public class ValueAnnotationTest {
         assertEquals("Integer property should be converted", 
             9090, bean.getIntWithDefault());
 
-        assertEquals("Integer property should be converted", 
+        assertEquals("String constant should be set", 
             "const", bean.getIntWithStringConst());
 
-        assertEquals("Integer property should be converted", 
+        assertEquals("Integer constant should be converted", 
             8080, bean.getIntWithIntConst());
-
-        // assertEquals("Constructor value should be resolved", 
-        //     "constructorValue", bean.getConstructorValue());
+            
+        // 测试setter方法注入
+        assertEquals("Setter string value should be injected", 
+            "setterInjectedValue", bean.getSetterValue());
+            
+        assertEquals("Setter int value should be injected and converted", 
+            42, bean.getSetterIntValue());
     }
     
     @Test
@@ -83,10 +58,15 @@ public class ValueAnnotationTest {
         System.clearProperty("app.port");
         
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.value");
         
         SimpleValueBean bean = context.getBean(SimpleValueBean.class);
+        assertNotNull("Bean should not be null", bean);
         
+        // 测试构造器值
+        assertEquals("Constructor value should be resolved", 
+            "constructorValue", bean.getConstructorValue());
+            
         // 测试默认值
         assertEquals("Default value should be used when property is missing", 
             "defaultName", bean.getStringWithDefault());
@@ -94,5 +74,12 @@ public class ValueAnnotationTest {
             bean.getStringWithoutDefault());
         assertEquals("Default port should be used", 
             8080, bean.getIntWithDefault());
+            
+        // 测试setter方法注入
+        assertEquals("Setter string value should be injected", 
+            "setterInjectedValue", bean.getSetterValue());
+            
+        assertEquals("Setter int value should be injected and converted", 
+            42, bean.getSetterIntValue());
     }
 } 

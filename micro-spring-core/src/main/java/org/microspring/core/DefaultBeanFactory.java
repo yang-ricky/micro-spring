@@ -23,6 +23,7 @@ import org.microspring.beans.factory.annotation.Qualifier;
 import org.microspring.core.aware.BeanFactoryAware;
 import org.microspring.core.exception.BeanCreationException;
 import org.microspring.core.exception.NoSuchBeanDefinitionException;
+import org.microspring.beans.factory.annotation.Value;
 
 public class DefaultBeanFactory implements BeanFactory {
     
@@ -515,7 +516,39 @@ public class DefaultBeanFactory implements BeanFactory {
             }
         }
         
-        // 3. 如果没有构造器参数，尝试使用无参构造器
+        // 3. 如果没有构造器参数，尝试使用带有@Value注解的构造器
+        for (Constructor<?> constructor : constructors) {
+            Parameter[] parameters = constructor.getParameters();
+            boolean hasValueAnnotation = false;
+            for (Parameter parameter : parameters) {
+                if (parameter.isAnnotationPresent(Value.class)) {
+                    hasValueAnnotation = true;
+                    break;
+                }
+            }
+            
+            if (hasValueAnnotation) {
+                constructor.setAccessible(true);
+                Object[] args = new Object[parameters.length];
+                for (int i = 0; i < parameters.length; i++) {
+                    Parameter parameter = parameters[i];
+                    Value valueAnnotation = parameter.getAnnotation(Value.class);
+                    if (valueAnnotation != null) {
+                        String value = valueAnnotation.value();
+                        Class<?> paramType = parameter.getType();
+                        args[i] = convertValue(value, paramType);
+                    }
+                }
+                try {
+                    return constructor.newInstance(args);
+                } catch (Exception e) {
+                    throw new BeanCreationException(beanClass.getName(), 
+                        "Failed to instantiate bean with @Value constructor", e);
+                }
+            }
+        }
+        
+        // 4. 最后尝试使用无参构造器
         try {
             Constructor<?> constructor = beanClass.getDeclaredConstructor();
             constructor.setAccessible(true);
@@ -524,6 +557,21 @@ public class DefaultBeanFactory implements BeanFactory {
             throw new CircularDependencyException(
                 "No suitable constructor found for " + beanClass.getName(), e);
         }
+    }
+
+    private Object convertValue(String value, Class<?> targetType) {
+        if (targetType == String.class) {
+            return value;
+        } else if (targetType == Integer.class || targetType == int.class) {
+            return Integer.parseInt(value);
+        } else if (targetType == Long.class || targetType == long.class) {
+            return Long.parseLong(value);
+        } else if (targetType == Double.class || targetType == double.class) {
+            return Double.parseDouble(value);
+        } else if (targetType == Boolean.class || targetType == boolean.class) {
+            return Boolean.parseBoolean(value);
+        }
+        throw new IllegalArgumentException("Unsupported type for @Value conversion: " + targetType);
     }
 
     public BeanDefinition getBeanDefinition(String name) {
