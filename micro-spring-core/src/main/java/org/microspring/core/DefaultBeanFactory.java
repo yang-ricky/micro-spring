@@ -430,10 +430,23 @@ public class DefaultBeanFactory implements BeanFactory {
                 
                 // 检查是否有 @Qualifier 注解
                 Qualifier qualifier = param.getAnnotation(Qualifier.class);
-                String beanName = qualifier != null ? qualifier.value() : 
-                    Character.toLowerCase(paramType.getSimpleName().charAt(0)) + 
-                    paramType.getSimpleName().substring(1);
-                args[i] = getBean(beanName);
+                Object argValue;
+                if (qualifier != null) {
+                    // 如果有@Qualifier，按名称查找
+                    String beanName = qualifier.value();
+                    argValue = getBean(beanName);
+                } else {
+                    // 如果没有@Qualifier，按类型查找
+                    try {
+                        argValue = getBean(paramType);
+                    } catch (RuntimeException e) {
+                        // 如果按类型查找失败，尝试使用默认的命名规则
+                        String defaultBeanName = Character.toLowerCase(paramType.getSimpleName().charAt(0)) + 
+                                              paramType.getSimpleName().substring(1);
+                        argValue = getBean(defaultBeanName);
+                    }
+                }
+                args[i] = argValue;
             }
             
             autowiredConstructor.setAccessible(true);

@@ -9,7 +9,7 @@ public class TestService {
     private final TestRepository repository;
 
     @Autowired
-    public TestService(@Qualifier("testRepo") TestRepository repository) {
+    public TestService(TestRepository repository) {
         this.repository = repository;
     }
 
