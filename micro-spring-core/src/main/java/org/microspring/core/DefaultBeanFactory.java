@@ -322,6 +322,25 @@ public class DefaultBeanFactory implements BeanFactory {
                 }
             }
         }
+
+        // 3. 处理 setter 方法上的 @Value 注解
+        for (Method method : bd.getBeanClass().getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Value.class)) {
+                Value valueAnnotation = method.getAnnotation(Value.class);
+                String value = valueAnnotation.value();
+                
+                // 确保是setter方法
+                if (method.getName().startsWith("set") && 
+                    method.getParameterCount() == 1 && 
+                    method.getReturnType() == void.class) {
+                    
+                    method.setAccessible(true);
+                    Class<?> paramType = method.getParameterTypes()[0];
+                    Object convertedValue = convertValue(value, paramType);
+                    method.invoke(bean, convertedValue);
+                }
+            }
+        }
     }
 
     public void loadBeanDefinitions(String xmlPath) {
