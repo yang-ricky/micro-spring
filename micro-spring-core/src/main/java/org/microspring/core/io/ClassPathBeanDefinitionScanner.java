@@ -89,74 +89,7 @@ public class ClassPathBeanDefinitionScanner {
                 }
 
                 if (shouldRegister) {
-                    BeanDefinition bd = new BeanDefinition() {
-                        private boolean lazyInit = false;
-                        private String initMethodName;
-                        private String destroyMethodName;
-                        
-                        @Override
-                        public Class<?> getBeanClass() {
-                            return clazz;
-                        }
-
-                        @Override
-                        public String getScope() {
-                            return "singleton";
-                        }
-
-                        @Override
-                        public boolean isSingleton() {
-                            return true;
-                        }
-
-                        @Override
-                        public String getInitMethodName() {
-                            return this.initMethodName;
-                        }
-
-                        @Override
-                        public void setInitMethodName(String initMethodName) {
-                            this.initMethodName = initMethodName;
-                        }
-
-                        @Override
-                        public String getDestroyMethodName() {
-                            return this.destroyMethodName;
-                        }
-
-                        @Override
-                        public void setDestroyMethodName(String destroyMethodName) {
-                            this.destroyMethodName = destroyMethodName;
-                        }
-
-                        @Override
-                        public List<ConstructorArg> getConstructorArgs() {
-                            return new ArrayList<>();
-                        }
-
-                        @Override
-                        public List<PropertyValue> getPropertyValues() {
-                            return new ArrayList<>();
-                        }
-
-                        @Override
-                        public void addConstructorArg(ConstructorArg arg) {
-                        }
-
-                        @Override
-                        public void addPropertyValue(PropertyValue propertyValue) {
-                        }
-
-                        @Override
-                        public boolean isLazyInit() {
-                            return this.lazyInit;
-                        }
-
-                        @Override
-                        public void setLazyInit(boolean lazyInit) {
-                            this.lazyInit = lazyInit;
-                        }
-                    };
+                    BeanDefinition bd = createBeanDefinition(clazz);
                     beanDefinitions.add(bd);
                     beanFactory.registerBeanDefinition(beanName, bd);
                     System.out.println("[INFO] Bean " + clazz.getSimpleName() + " is loaded");
@@ -172,6 +105,92 @@ public class ClassPathBeanDefinitionScanner {
         } catch (ClassNotFoundException e) {
             // 忽略无法加载的类
         }
+    }
+
+    private BeanDefinition createBeanDefinition(Class<?> beanClass) {
+        return new BeanDefinition() {
+            private boolean lazyInit = false;
+            private String initMethodName;
+            private String destroyMethodName;
+            private boolean primary = false;
+            private final List<PropertyValue> propertyValues = new ArrayList<>();
+            private final List<ConstructorArg> constructorArgs = new ArrayList<>();
+            
+            @Override
+            public Class<?> getBeanClass() {
+                return beanClass;
+            }
+            
+            @Override
+            public String getScope() {
+                return "singleton";
+            }
+            
+            @Override
+            public boolean isSingleton() {
+                return true;
+            }
+            
+            @Override
+            public String getInitMethodName() {
+                return initMethodName;
+            }
+            
+            @Override
+            public void setInitMethodName(String initMethodName) {
+                this.initMethodName = initMethodName;
+            }
+            
+            @Override
+            public String getDestroyMethodName() {
+                return destroyMethodName;
+            }
+            
+            @Override
+            public void setDestroyMethodName(String destroyMethodName) {
+                this.destroyMethodName = destroyMethodName;
+            }
+            
+            @Override
+            public List<ConstructorArg> getConstructorArgs() {
+                return constructorArgs;
+            }
+            
+            @Override
+            public List<PropertyValue> getPropertyValues() {
+                return propertyValues;
+            }
+            
+            @Override
+            public void addConstructorArg(ConstructorArg arg) {
+                constructorArgs.add(arg);
+            }
+            
+            @Override
+            public void addPropertyValue(PropertyValue propertyValue) {
+                propertyValues.add(propertyValue);
+            }
+            
+            @Override
+            public boolean isLazyInit() {
+                return lazyInit;
+            }
+            
+            @Override
+            public void setLazyInit(boolean lazyInit) {
+                this.lazyInit = lazyInit;
+            }
+
+            @Override
+            public boolean isPrimary() {
+                return primary;
+            }
+
+            @Override
+            public void setPrimary(boolean primary) {
+                this.primary = primary;
+            }
+        };
     }
 
     private String toLowerFirstCase(String str) {

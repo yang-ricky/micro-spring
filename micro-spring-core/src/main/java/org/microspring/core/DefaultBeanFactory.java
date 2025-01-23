@@ -622,23 +622,38 @@ public class DefaultBeanFactory implements BeanFactory {
     @Override   
     public <T> T getBean(Class<T> requiredType) {
         List<String> matchingBeans = new ArrayList<>();
+        String primaryMatch = null;
         String exactMatch = null;
         
         for (String beanName : beanDefinitionMap.keySet()) {
             BeanDefinition bd = beanDefinitionMap.get(beanName);
             if (requiredType.isAssignableFrom(bd.getBeanClass())) {
                 matchingBeans.add(beanName);
+                // 检查是否是Primary
+                if (bd.isPrimary()) {
+                    primaryMatch = beanName;
+                }
+                // 检查是否精确匹配
                 if (bd.getBeanClass() == requiredType) {
                     exactMatch = beanName;
+                    // 如果精确匹配的bean同时是Primary，优先级最高
+                    if (bd.isPrimary()) {
+                        return (T) getBean(beanName);
+                    }
                 }
             }
         }
         
         if (matchingBeans.isEmpty()) {
-            throw new RuntimeException("No bean of type '" + requiredType.getName() + "' is defined");
+            throw new NoSuchBeanDefinitionException("No bean of type '" + requiredType.getName() + "' is defined");
         }
         
-        // 优先返回精确匹配的bean
+        // 优先返回@Primary标注的bean
+        if (primaryMatch != null) {
+            return (T) getBean(primaryMatch);
+        }
+        
+        // 其次返回精确匹配的bean
         if (exactMatch != null) {
             return (T) getBean(exactMatch);
         }
@@ -648,9 +663,9 @@ public class DefaultBeanFactory implements BeanFactory {
             return (T) getBean(matchingBeans.get(0));
         }
         
-        // 如果有多个匹配但没有精确匹配，抛出异常
-        throw new RuntimeException("Multiple beans found for type '" + requiredType.getName() 
-            + "': " + matchingBeans);
+        // 如果有多个匹配但没有Primary标注，抛出异常
+        throw new NoSuchBeanDefinitionException("Multiple beans found for type '" + requiredType.getName() 
+            + "' and none is marked as primary: " + matchingBeans);
     }
 
     public void close() {
@@ -770,6 +785,7 @@ public class DefaultBeanFactory implements BeanFactory {
             private boolean lazyInit = false;
             private String initMethodName;
             private String destroyMethodName;
+            private boolean primary = false;
             private final List<PropertyValue> propertyValues = new ArrayList<>();
             private final List<ConstructorArg> constructorArgs = new ArrayList<>();
             
@@ -836,6 +852,16 @@ public class DefaultBeanFactory implements BeanFactory {
             @Override
             public void setLazyInit(boolean lazyInit) {
                 this.lazyInit = lazyInit;
+            }
+
+            @Override
+            public boolean isPrimary() {
+                return primary;
+            }
+
+            @Override
+            public void setPrimary(boolean primary) {
+                this.primary = primary;
             }
         };
         

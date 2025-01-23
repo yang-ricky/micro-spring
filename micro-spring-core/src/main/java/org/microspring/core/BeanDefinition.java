@@ -4,11 +4,12 @@ import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
 import java.util.List;
 import java.lang.reflect.Method;
+import org.microspring.core.type.PrimaryMetadata;
 
 /**
  * Bean定义信息的抽象
  */
-public interface BeanDefinition {
+public interface BeanDefinition extends PrimaryMetadata {
     
     /**
      * 获取Bean的Class类型
@@ -84,4 +85,6 @@ public interface BeanDefinition {
     default Class<?> getFactoryBeanClass() {
         return null;
     }
+
+    void setPrimary(boolean primary);
 } 

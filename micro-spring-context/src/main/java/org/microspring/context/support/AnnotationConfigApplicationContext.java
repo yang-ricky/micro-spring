@@ -20,6 +20,7 @@ import org.microspring.beans.factory.annotation.Qualifier;
 import org.microspring.context.annotation.Bean;
 import org.microspring.context.annotation.Configuration;
 import org.microspring.beans.factory.annotation.Value;
+import org.microspring.context.annotation.Primary;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -171,6 +172,7 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             private boolean lazyInit = false;
             private String initMethodName;
             private String destroyMethodName;
+            private boolean primary = false;
             private final List<PropertyValue> propertyValues = new ArrayList<>();
             private final List<ConstructorArg> constructorArgs = new ArrayList<>();
             
@@ -242,7 +244,23 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             public void setLazyInit(boolean lazyInit) {
                 this.lazyInit = lazyInit;
             }
+            
+            @Override
+            public boolean isPrimary() {
+                return primary;
+            }
+            
+            @Override
+            public void setPrimary(boolean primary) {
+                this.primary = primary;
+            }
         };
+        
+        // 检查并设置@Primary注解
+        Primary primaryAnn = method.getAnnotation(Primary.class);
+        if (primaryAnn != null) {
+            bd.setPrimary(true);
+        }
         
         // 处理工厂方法的参数
         if (method.getParameterCount() > 0) {
@@ -313,6 +331,7 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             private boolean lazyInit = false;
             private String initMethodName;
             private String destroyMethodName;
+            private boolean primary = false;
             private final List<PropertyValue> propertyValues = new ArrayList<>();
             private final List<ConstructorArg> constructorArgs = new ArrayList<>();
             
@@ -382,7 +401,23 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             public void setLazyInit(boolean lazyInit) {
                 this.lazyInit = lazyInit;
             }
+            
+            @Override
+            public boolean isPrimary() {
+                return primary;
+            }
+            
+            @Override
+            public void setPrimary(boolean primary) {
+                this.primary = primary;
+            }
         };
+
+        // 检查并设置@Primary注解
+        Primary primaryAnn = clazz.getAnnotation(Primary.class);
+        if (primaryAnn != null) {
+            bd.setPrimary(true);
+        }
         
         // 处理字段注入的依赖关系
         for (Field field : clazz.getDeclaredFields()) {

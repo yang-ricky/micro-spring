@@ -4,15 +4,19 @@ import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Method;
 
 public class DefaultBeanDefinition implements BeanDefinition {
-    private Class<?> beanClass;
+    private final Class<?> beanClass;
     private String scope = "singleton";
+    private boolean lazyInit = false;
     private String initMethodName;
     private String destroyMethodName;
-    private boolean lazyInit = false;
-    private final List<ConstructorArg> constructorArgs = new ArrayList<>();
+    private boolean primary = false;
     private final List<PropertyValue> propertyValues = new ArrayList<>();
+    private final List<ConstructorArg> constructorArgs = new ArrayList<>();
+    private Method factoryMethod;
+    private Class<?> factoryBeanClass;
 
     public DefaultBeanDefinition(Class<?> beanClass) {
         this.beanClass = beanClass;
@@ -85,5 +89,33 @@ public class DefaultBeanDefinition implements BeanDefinition {
     @Override
     public void setLazyInit(boolean lazyInit) {
         this.lazyInit = lazyInit;
+    }
+
+    @Override
+    public Method getFactoryMethod() {
+        return this.factoryMethod;
+    }
+
+    public void setFactoryMethod(Method factoryMethod) {
+        this.factoryMethod = factoryMethod;
+    }
+
+    @Override
+    public Class<?> getFactoryBeanClass() {
+        return this.factoryBeanClass;
+    }
+
+    public void setFactoryBeanClass(Class<?> factoryBeanClass) {
+        this.factoryBeanClass = factoryBeanClass;
+    }
+
+    @Override
+    public boolean isPrimary() {
+        return this.primary;
+    }
+
+    @Override
+    public void setPrimary(boolean primary) {
+        this.primary = primary;
     }
 } 
