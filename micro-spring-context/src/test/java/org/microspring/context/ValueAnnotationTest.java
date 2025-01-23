@@ -10,6 +10,16 @@ public class ValueAnnotationTest {
     
     @Component
     public static class SimpleValueBean {
+        // private String constructorValue;
+
+        // public SimpleValueBean(@Value("constructorValue") String constructorValue) {
+        //     this.constructorValue = constructorValue;
+        // }
+
+        // public String getConstructorValue() {
+        //     return constructorValue;
+        // }
+
         @Value("${app.name:defaultName}")
         private String stringWithDefault;
         
@@ -18,10 +28,18 @@ public class ValueAnnotationTest {
         
         @Value("${app.port:8080}")
         private int intWithDefault;
+
+        @Value("const")
+        private String intWithStringConst;
+
+        @Value("8080")
+        private int intWithIntConst;
         
         public String getStringWithDefault() { return stringWithDefault; }
         public String getStringWithoutDefault() { return stringWithoutDefault; }
         public int getIntWithDefault() { return intWithDefault; }
+        public String getIntWithStringConst() { return intWithStringConst; }
+        public int getIntWithIntConst() { return intWithIntConst; }
     }
     
     @Test
@@ -47,6 +65,15 @@ public class ValueAnnotationTest {
         // 测试数字类型转换
         assertEquals("Integer property should be converted", 
             9090, bean.getIntWithDefault());
+
+        assertEquals("Integer property should be converted", 
+            "const", bean.getIntWithStringConst());
+
+        assertEquals("Integer property should be converted", 
+            8080, bean.getIntWithIntConst());
+
+        // assertEquals("Constructor value should be resolved", 
+        //     "constructorValue", bean.getConstructorValue());
     }
     
     @Test
