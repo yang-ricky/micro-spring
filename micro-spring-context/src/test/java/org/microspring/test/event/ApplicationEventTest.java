@@ -31,7 +31,6 @@ public class ApplicationEventTest {
 
         @Override
         public void onApplicationEvent(ContextRefreshedEvent event) {
-            System.out.println("Received ContextRefreshedEvent");
             this.refreshEventReceived = true;
         }
     }

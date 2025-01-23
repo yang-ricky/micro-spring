@@ -127,7 +127,6 @@ public class DispatcherServlet extends HttpServlet {
             try {
                 interceptor.afterCompletion(request, response, handler, ex);
             } catch (Throwable e) {
-                System.err.println("HandlerInterceptor.afterCompletion threw exception: " + e);
             }
         }
     }

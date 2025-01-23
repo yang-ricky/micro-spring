@@ -83,7 +83,6 @@ public class ContainerHierarchyTest {
         grandParentContext.addApplicationListener(new ApplicationListener<ApplicationEvent>() {
             @Override
             public void onApplicationEvent(ApplicationEvent event) {
-                System.out.println("GrandParent received: " + event.getClass().getSimpleName());
                 grandParentEvents.add("GrandParent:" + event.getClass().getSimpleName());
             }
         });
@@ -91,7 +90,6 @@ public class ContainerHierarchyTest {
         parentContext.addApplicationListener(new ApplicationListener<ApplicationEvent>() {
             @Override
             public void onApplicationEvent(ApplicationEvent event) {
-                System.out.println("Parent received: " + event.getClass().getSimpleName());
                 parentEvents.add("Parent:" + event.getClass().getSimpleName());
             }
         });
@@ -99,7 +97,6 @@ public class ContainerHierarchyTest {
         childContext.addApplicationListener(new ApplicationListener<ContextStartedEvent>() {
             @Override
             public void onApplicationEvent(ContextStartedEvent event) {
-                System.out.println("Child received: " + event.getClass().getSimpleName());
                 childEvents.add("Child:" + event.getClass().getSimpleName());
             }
         });

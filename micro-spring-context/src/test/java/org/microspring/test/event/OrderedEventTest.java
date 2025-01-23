@@ -49,7 +49,6 @@ public class OrderedEventTest {
         @Override
         public void onApplicationEvent(CustomOrderedEvent event) {
             executionOrder.add("First");
-            System.out.println("First listener executed");
         }
     }
     
@@ -58,7 +57,6 @@ public class OrderedEventTest {
         @Override
         public void onApplicationEvent(CustomOrderedEvent event) {
             executionOrder.add("Second");
-            System.out.println("Second listener executed");
         }
     }
     
@@ -67,7 +65,6 @@ public class OrderedEventTest {
         @Override
         public void onApplicationEvent(CustomOrderedEvent event) {
             executionOrder.add("Third");
-            System.out.println("Third listener executed");
         }
     }
     
@@ -75,7 +72,6 @@ public class OrderedEventTest {
         @Override
         public void onApplicationEvent(CustomOrderedEvent event) {
             executionOrder.add("Default");
-            System.out.println("Default listener executed");
         }
     }
 } 

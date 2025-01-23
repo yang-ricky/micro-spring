@@ -116,7 +116,6 @@ public class SimpleApplicationEventMulticaster implements ApplicationEventMultic
                 }
             }
         }
-        System.out.println("No event type found, returning null");
         return null;
     }
 

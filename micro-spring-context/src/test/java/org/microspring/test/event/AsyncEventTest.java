@@ -64,7 +64,6 @@ public class AsyncEventTest {
         @Override
         public void onApplicationEvent(CustomEvent event) {
             eventProcessed = true;
-            System.out.println("Sync event processed in thread: " + Thread.currentThread().getName());
         }
         
         public boolean isEventProcessed() {

@@ -217,7 +217,6 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
     }
     
     public void close() {
-        System.out.println("Closing application context...");
         // 遍历所有单例bean，调用销毁方法
         for (String beanName : beanFactory.getBeanDefinitionNames()) {
             BeanDefinition bd = beanFactory.getBeanDefinition(beanName);

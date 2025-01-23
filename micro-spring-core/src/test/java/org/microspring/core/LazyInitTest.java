@@ -9,13 +9,11 @@ public class LazyInitTest {
     
     public static class LazyBean {
         public LazyBean() {
-            System.out.println("LazyBean constructor called");
         }
     }
     
     public static class EagerBean {
         public EagerBean() {
-            System.out.println("EagerBean constructor called");
         }
     }
     
