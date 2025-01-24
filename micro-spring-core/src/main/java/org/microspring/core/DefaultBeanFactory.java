@@ -622,7 +622,7 @@ public class DefaultBeanFactory implements BeanFactory {
     @Override   
     public <T> T getBean(Class<T> requiredType) {
         List<String> matchingBeans = new ArrayList<>();
-        String primaryMatch = null;
+        List<String> primaryBeans = new ArrayList<>();
         String exactMatch = null;
         
         for (String beanName : beanDefinitionMap.keySet()) {
@@ -631,15 +631,11 @@ public class DefaultBeanFactory implements BeanFactory {
                 matchingBeans.add(beanName);
                 // 检查是否是Primary
                 if (bd.isPrimary()) {
-                    primaryMatch = beanName;
+                    primaryBeans.add(beanName);
                 }
                 // 检查是否精确匹配
                 if (bd.getBeanClass() == requiredType) {
                     exactMatch = beanName;
-                    // 如果精确匹配的bean同时是Primary，优先级最高
-                    if (bd.isPrimary()) {
-                        return (T) getBean(beanName);
-                    }
                 }
             }
         }
@@ -648,9 +644,15 @@ public class DefaultBeanFactory implements BeanFactory {
             throw new NoSuchBeanDefinitionException("No bean of type '" + requiredType.getName() + "' is defined");
         }
         
+        // 如果有多个@Primary标注的bean，抛出异常
+        if (primaryBeans.size() > 1) {
+            throw new NoSuchBeanDefinitionException("Multiple primary beans found for type '" + 
+                requiredType.getName() + "': " + primaryBeans);
+        }
+        
         // 优先返回@Primary标注的bean
-        if (primaryMatch != null) {
-            return (T) getBean(primaryMatch);
+        if (primaryBeans.size() == 1) {
+            return (T) getBean(primaryBeans.get(0));
         }
         
         // 其次返回精确匹配的bean

@@ -1,140 +1,24 @@
 package org.microspring.context;
 
 import org.junit.Test;
+import org.junit.Before;
 import static org.junit.Assert.*;
 
-import org.microspring.context.annotation.Bean;
-import org.microspring.context.annotation.Configuration;
-import org.microspring.beans.factory.annotation.Scope;
-import org.microspring.beans.factory.annotation.Value;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
+import org.microspring.test.configuration.*;
 
-//ricky test
 public class ConfigurationAnnotationTest {
     
-    @Configuration
-    static class TestConfig {
-        
-        @Bean
-        public TestService testService() {
-            return new TestService();
-        }
-        
-        @Bean
-        public TestRepository testRepository() {
-            return new TestRepository();
-        }
-        
-        @Bean
-        public TestController testController(TestService testService) {
-            return new TestController(testService);
-        }
-
-
-        @Bean
-        public Person basicValue(@Value("testmessage") String message, @Value("24") Integer age){
-            return new Person(message, age);
-        }
-
-        static class Person {
-            private final String message;
-            private Integer age;
-            
-            public Person(String message, Integer age) {
-                this.message = message;
-                this.age = age;
-            }
-            
-            public String getMessage() {
-                return message;
-            }
-
-            public Integer getAge() {
-                return  age;
-            }
-        }
-
-        @Bean
-        @Scope("prototype")
-        public PrototypeBean prototypeBean() {
-            return new PrototypeBean();
-        }
-
-        @Bean(initMethod = "init", destroyMethod = "cleanup")
-        public LifecycleBean lifecycleBean() {
-            return new LifecycleBean();
-        }
-
-        @Bean("customName")
-        public CustomNameBean customNameBean() {
-            return new CustomNameBean();
-        }
+    @Before
+    public void setup() {
+        // Reset the instance count before each test
+        PrototypeBean.resetInstanceCount();
     }
-    
-    static class TestService {
-        public String serve() {
-            return "served";
-        }
-    }
-    
-    static class TestRepository {
-        public String find() {
-            return "found";
-        }
-    }
-    
-    static class TestController {
-        private final TestService testService;
-        
-        public TestController(TestService testService) {
-            this.testService = testService;
-        }
-        
-        public String handle() {
-            return testService.serve();
-        }
-    }
-    
-    static class PrototypeBean {
-        private static int instanceCount = 0;
-        
-        public PrototypeBean() {
-            instanceCount++;
-        }
-        
-        public static int getInstanceCount() {
-            return instanceCount;
-        }
-    }
-    
-    static class LifecycleBean {
-        private boolean initialized = false;
-        private boolean destroyed = false;
-        
-        public void init() {
-            initialized = true;
-        }
-        
-        public void cleanup() {
-            destroyed = true;
-        }
-        
-        public boolean isInitialized() {
-            return initialized;
-        }
-        
-        public boolean isDestroyed() {
-            return destroyed;
-        }
-    }
-    
-    static class CustomNameBean {}
-    
     
     @Test
     public void testConfigurationAndBeanAnnotations() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.configuration");
         
         TestService testService = context.getBean("testService", TestService.class);
         assertNotNull("TestService should not be null", testService);
@@ -152,17 +36,17 @@ public class ConfigurationAnnotationTest {
     @Test
     public void testBeanMethodDependencyInjection() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.configuration");
         
         TestController controller = context.getBean("testController", TestController.class);
-        assertNotNull("Controller's testService dependency should be injected", controller.testService);
+        assertNotNull("Controller's testService dependency should be injected", controller.getTestService());
         assertEquals("served", controller.handle());
     }
 
     @Test
     public void testPrototypeScopeBean() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.configuration");
         
         PrototypeBean bean1 = context.getBean("prototypeBean", PrototypeBean.class);
         PrototypeBean bean2 = context.getBean("prototypeBean", PrototypeBean.class);
@@ -176,7 +60,7 @@ public class ConfigurationAnnotationTest {
     @Test
     public void testBeanLifecycle() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.configuration");
         
         LifecycleBean bean = context.getBean("lifecycleBean", LifecycleBean.class);
         assertTrue("Bean should be initialized", bean.isInitialized());
@@ -188,7 +72,7 @@ public class ConfigurationAnnotationTest {
     @Test
     public void testCustomBeanName() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.configuration");
         
         CustomNameBean bean = context.getBean("customName", CustomNameBean.class);
         assertNotNull("Should find bean with custom name", bean);
@@ -204,7 +88,7 @@ public class ConfigurationAnnotationTest {
     @Test
     public void testConfigurationClassAsBeanDefinition() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.configuration");
         
         TestConfig config = context.getBean(TestConfig.class);
         assertNotNull("Configuration class should be registered as bean", config);
@@ -213,11 +97,11 @@ public class ConfigurationAnnotationTest {
     @Test
     public void testBeanMethodWithStringParameter() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.configuration");
         
-        org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person person = context.getBean("basicValue", org.microspring.context.ConfigurationAnnotationTest.TestConfig.Person.class);
+        Person person = context.getBean("basicValue", Person.class);
         
-        assertNotNull("StringHolder should not be null", person);
+        assertNotNull("Person should not be null", person);
         assertEquals(Integer.valueOf(24), person.getAge());
         assertEquals("testmessage", person.getMessage());
     }

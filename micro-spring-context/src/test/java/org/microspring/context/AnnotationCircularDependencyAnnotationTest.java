@@ -2,7 +2,7 @@ package org.microspring.context;
 
 import org.junit.Test;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
-
+import org.microspring.test.circular.*;
 import static org.junit.Assert.*;
 
 public class AnnotationCircularDependencyAnnotationTest {
@@ -10,7 +10,7 @@ public class AnnotationCircularDependencyAnnotationTest {
     @Test
     public void testFieldBasedCircularDependency() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.circular");
         
         CircularFieldA a = context.getBean(CircularFieldA.class);
         CircularFieldB b = context.getBean(CircularFieldB.class);
@@ -42,7 +42,7 @@ public class AnnotationCircularDependencyAnnotationTest {
     @Test
     public void testMethodBasedCircularDependency() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.circular");
         
         CircularMethodA a = context.getBean(CircularMethodA.class);
         CircularMethodB b = context.getBean(CircularMethodB.class);

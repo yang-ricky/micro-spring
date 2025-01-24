@@ -2,41 +2,10 @@ package org.microspring.test.primary;
 
 import org.junit.Test;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
-import org.microspring.context.annotation.Primary;
-import org.microspring.stereotype.Component;
 import org.microspring.core.exception.NoSuchBeanDefinitionException;
 import static org.junit.Assert.*;
 
 public class PrimaryAnnotationTest {
-
-    interface Animal {
-        String getName();
-    }
-
-    @Component
-    @Primary
-    static class Dog implements Animal {
-        @Override
-        public String getName() {
-            return "dog";
-        }
-    }
-
-    @Component
-    static class Cat implements Animal {
-        @Override
-        public String getName() {
-            return "cat";
-        }
-    }
-
-    @Component
-    static class Bird implements Animal {
-        @Override
-        public String getName() {
-            return "bird";
-        }
-    }
 
     @Test
     public void testPrimaryAnnotation() {
@@ -69,27 +38,6 @@ public class PrimaryAnnotationTest {
         assertEquals("Should get dog when requesting by name", "dog", dog.getName());
     }
 
-    // 测试没有@Primary注解时的多个实现
-    interface Fruit {
-        String getName();
-    }
-
-    @Component
-    static class Apple implements Fruit {
-        @Override
-        public String getName() {
-            return "apple";
-        }
-    }
-
-    @Component
-    static class Orange implements Fruit {
-        @Override
-        public String getName() {
-            return "orange";
-        }
-    }
-
     @Test(expected = NoSuchBeanDefinitionException.class)
     public void testMultipleImplementationsWithoutPrimary() {
         AnnotationConfigApplicationContext context = 
@@ -97,19 +45,6 @@ public class PrimaryAnnotationTest {
         
         // 当有多个实现但没有@Primary时，应该抛出异常
         context.getBean(Fruit.class);
-    }
-
-    // 测试单个实现时不需要@Primary
-    interface Vehicle {
-        String getType();
-    }
-
-    @Component
-    static class Car implements Vehicle {
-        @Override
-        public String getType() {
-            return "car";
-        }
     }
 
     @Test
@@ -121,5 +56,45 @@ public class PrimaryAnnotationTest {
         Vehicle vehicle = context.getBean(Vehicle.class);
         assertNotNull("Should get vehicle bean", vehicle);
         assertEquals("Should get car", "car", vehicle.getType());
+    }
+
+    @Test(expected = NoSuchBeanDefinitionException.class)
+    public void testMultiplePrimaryAnnotationsShouldThrowException() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.primary");
+        
+        // 这个测试用例验证正确的行为：当有多个@Primary bean时应该抛出异常
+        try {
+            context.getBean(Database.class);
+            fail("Should throw NoSuchBeanDefinitionException when multiple primary beans are found");
+        } catch (NoSuchBeanDefinitionException e) {
+            assertTrue(e.getMessage().contains("Multiple primary beans found"));
+            throw e;
+        }
+    }
+
+    @Test
+    public void testPrimaryWithInheritance() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.primary");
+        
+        Shape shape = context.getBean(Shape.class);
+        assertNotNull("Should get a shape bean", shape);
+        assertEquals("Should get the primary circle bean", "circle", shape.getShape());
+
+        ColoredCircle coloredCircle = context.getBean(ColoredCircle.class);
+        assertNotNull("Should get colored circle bean", coloredCircle);
+        assertEquals("Should get colored circle", "colored-circle", coloredCircle.getShape());
+    }
+
+    @Test
+    public void testPrimaryWithQualifier() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.primary");
+        
+        PrinterUser printerUser = context.getBean(PrinterUser.class);
+        assertNotNull("Should get printer user bean", printerUser);
+        assertEquals("Default printer should be laser (Primary)", "laser", printerUser.getDefaultPrinterType());
+        assertEquals("Qualified printer should be inkjet", "inkjet", printerUser.getInkjetPrinterType());
     }
 } 

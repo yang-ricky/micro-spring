@@ -1,167 +1,26 @@
 package org.microspring.context;
 
 import org.junit.Test;
-import org.microspring.beans.factory.annotation.Autowired;
-import org.microspring.beans.factory.annotation.Qualifier;
-import org.microspring.beans.factory.annotation.Scope;
-import org.microspring.stereotype.Component;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
+import org.microspring.test.annotation.*;
 import static org.junit.Assert.*;
 
 public class AnnotationConfigApplicationContextTest {
     
-    @Component
-    public static class ServiceA {
-        private String message = "Hello from ServiceA";
-        public String getMessage() {
-            return message;
-        }
-    }
-    
-    @Component("serviceB")
-    @Scope("prototype")
-    public static class ServiceB {
-        @Autowired
-        private ServiceA serviceA;
-        
-        @Autowired
-        @Qualifier("specificBean")
-        private ServiceA specificServiceA;
-        
-        public String getMessageFromA() {
-            return serviceA.getMessage();
-        }
-        
-        public String getMessageFromSpecificA() {
-            return specificServiceA.getMessage();
-        }
-    }
-    
-    @Component("specificBean")
-    public static class SpecificServiceA extends ServiceA {
-        @Override
-        public String getMessage() {
-            return "Hello from Specific ServiceA";
-        }
-    }
-    
-    @Component
-    public static class ServiceWithConstructor {
-        private final ServiceA serviceA;
-        private final ServiceB serviceB;
-
-        @Autowired  // 构造器注入
-        public ServiceWithConstructor(ServiceA serviceA, 
-                                    @Qualifier("serviceB") ServiceB serviceB) {
-            this.serviceA = serviceA;
-            this.serviceB = serviceB;
-        }
-
-        public String getMessageFromBoth() {
-            return serviceA.getMessage() + " & " + serviceB.getMessageFromA();
-        }
-    }
-    
-    @Component
-    public static class MessageServiceWithSetter {
-        private ServiceA serviceA;
-        private ServiceB serviceB;
-        
-        // 标准的 setter 方法注入
-        @Autowired
-        public void setServiceA(ServiceA serviceA) {
-            this.serviceA = serviceA;
-        }
-        
-        @Autowired
-        @Qualifier("serviceB")  // 使用限定符指定具体的 serviceB
-        public void setServiceB(ServiceB serviceB) {
-            this.serviceB = serviceB;
-        }
-        
-        public String getCombinedMessages() {
-            return serviceA.getMessage() + " and " + serviceB.getMessageFromA();
-        }
-    }
-    
-    @Component
-    public static class MessageServiceWithMethod {
-        private ServiceA serviceA;
-        private ServiceB serviceB;
-        
-        // 普通方法注入，一次注入多个依赖
-        @Autowired
-        public void initializeServices(ServiceA serviceA, 
-                                     @Qualifier("serviceB") ServiceB serviceB) {
-            this.serviceA = serviceA;
-            this.serviceB = serviceB;
-            // 这里可以添加一些初始化逻辑
-        }
-        
-        public String getMessages() {
-            return "Standard: " + serviceA.getMessage() + 
-                   ", From B: " + serviceB.getMessageFromA() + 
-                   ", Specific: " + serviceB.getMessageFromSpecificA();
-        }
-    }
-    
-    @Component
-    @Scope("singleton")
-    public static class TestSingletonBean {
-        private int count = 0;
-        public int increment() {
-            return ++count;
-        }
-    }
-    
-    @Component
-    @Scope("prototype")
-    public static class TestPrototypeBean {
-        private int count = 0;
-        public int increment() {
-            return ++count;
-        }
-    }
-    
-    @Component
-    @Scope("singleton")
-    public static class SingletonWithPrototype {
-        @Autowired
-        private TestPrototypeBean prototypeBean;
-        
-        public int getPrototypeCount() {
-            return prototypeBean.increment();
-        }
-    }
-    
-    @Component
-    @Scope("prototype")
-    public static class PrototypeWithSingleton {
-        @Autowired
-        private TestSingletonBean singletonBean;
-        
-        public int getSingletonCount() {
-            return singletonBean.increment();
-        }
-    }    
-    
     @Test
-    public void testAnnotationBasedContainer() {
+    public void testBasicDependencyInjection() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
         
-        // 测试基本的组件扫描
         ServiceA serviceA = context.getBean(ServiceA.class);
         assertNotNull("ServiceA should be found", serviceA);
         assertEquals("Hello from ServiceA", serviceA.getMessage());
         
-        // 测试@Qualifier注解
         ServiceB serviceB = context.getBean("serviceB", ServiceB.class);
         assertNotNull("ServiceB should be found", serviceB);
         assertEquals("Hello from ServiceA", serviceB.getMessageFromA());
         assertEquals("Hello from Specific ServiceA", serviceB.getMessageFromSpecificA());
         
-        // 测试@Scope("prototype")
         ServiceB anotherB = context.getBean("serviceB", ServiceB.class);
         assertNotSame("Prototype beans should be different", serviceB, anotherB);
     }
@@ -169,7 +28,7 @@ public class AnnotationConfigApplicationContextTest {
     @Test
     public void testConstructorInjection() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
         
         ServiceWithConstructor service = context.getBean(ServiceWithConstructor.class);
         assertNotNull("Service should be found", service);
@@ -181,7 +40,7 @@ public class AnnotationConfigApplicationContextTest {
     @Test
     public void testSetterInjection() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
         
         MessageServiceWithSetter setterService = context.getBean(MessageServiceWithSetter.class);
         assertNotNull("MessageServiceWithSetter should be found", setterService);
@@ -192,7 +51,7 @@ public class AnnotationConfigApplicationContextTest {
     @Test
     public void testMethodInjection() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
         
         MessageServiceWithMethod methodService = context.getBean(MessageServiceWithMethod.class);
         assertNotNull("MessageServiceWithMethod should be found", methodService);
@@ -205,19 +64,19 @@ public class AnnotationConfigApplicationContextTest {
     @Test
     public void testScopeAnnotations() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
         
         // 测试单例 bean
-        TestSingletonBean singleton1 = (TestSingletonBean) context.getBean("testSingletonBean");
-        TestSingletonBean singleton2 = (TestSingletonBean) context.getBean("testSingletonBean");
+        TestSingletonBean singleton1 = context.getBean(TestSingletonBean.class);
+        TestSingletonBean singleton2 = context.getBean(TestSingletonBean.class);
         
         assertEquals(1, singleton1.increment());
         assertEquals(2, singleton2.increment());  // 同一个实例，计数继续增加
         assertSame(singleton1, singleton2);  // 应该是同一个实例
         
         // 测试原型 bean
-        TestPrototypeBean prototype1 = (TestPrototypeBean) context.getBean("testPrototypeBean");
-        TestPrototypeBean prototype2 = (TestPrototypeBean) context.getBean("testPrototypeBean");
+        TestPrototypeBean prototype1 = context.getBean(TestPrototypeBean.class);
+        TestPrototypeBean prototype2 = context.getBean(TestPrototypeBean.class);
         
         assertEquals(1, prototype1.increment());
         assertEquals(1, prototype2.increment());  // 新实例，计数从1开始
@@ -227,10 +86,10 @@ public class AnnotationConfigApplicationContextTest {
     @Test
     public void testSingletonWithPrototypeDependency() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
         
-        SingletonWithPrototype singleton1 = (SingletonWithPrototype) context.getBean("singletonWithPrototype");
-        SingletonWithPrototype singleton2 = (SingletonWithPrototype) context.getBean("singletonWithPrototype");
+        SingletonWithPrototype singleton1 = context.getBean(SingletonWithPrototype.class);
+        SingletonWithPrototype singleton2 = context.getBean(SingletonWithPrototype.class);
         
         assertEquals(1, singleton1.getPrototypeCount());
         assertEquals(2, singleton2.getPrototypeCount());
@@ -240,10 +99,10 @@ public class AnnotationConfigApplicationContextTest {
     @Test
     public void testPrototypeWithSingletonDependency() {
         AnnotationConfigApplicationContext context = 
-            new AnnotationConfigApplicationContext("org.microspring.context");
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
         
-        PrototypeWithSingleton prototype1 = (PrototypeWithSingleton) context.getBean("prototypeWithSingleton");
-        PrototypeWithSingleton prototype2 = (PrototypeWithSingleton) context.getBean("prototypeWithSingleton");
+        PrototypeWithSingleton prototype1 = context.getBean(PrototypeWithSingleton.class);
+        PrototypeWithSingleton prototype2 = context.getBean(PrototypeWithSingleton.class);
         
         assertEquals(1, prototype1.getSingletonCount());
         assertEquals(2, prototype2.getSingletonCount());
@@ -254,4 +113,44 @@ public class AnnotationConfigApplicationContextTest {
     // todo: 测试集合注入
     // List<MessageService> services
     // Map<String, MessageService> serviceMap
+    
+    @Test
+    public void testInterfaceImplementations() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
+        
+        MessageService service1 = context.getBean("messageService1", MessageService.class);
+        MessageService service2 = context.getBean("messageService2", MessageService.class);
+        
+        assertEquals("Message from Implementation 1", service1.getMessage());
+        assertEquals("Message from Implementation 2", service2.getMessage());
+        assertNotSame(service1, service2);
+    }
+    
+    @Test
+    public void testAbstractClassImplementations() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
+        
+        AbstractGreeting chineseGreeting = context.getBean("chineseGreeting", AbstractGreeting.class);
+        AbstractGreeting englishGreeting = context.getBean("englishGreeting", AbstractGreeting.class);
+        
+        assertTrue(chineseGreeting.greet().startsWith("你好"));
+        assertTrue(englishGreeting.greet().startsWith("Hello"));
+        assertNotSame(chineseGreeting, englishGreeting);
+    }
+    
+    @Test
+    public void testCombinedGreetingService() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.annotation");
+        
+        GreetingService greetingService = context.getBean(GreetingService.class);
+        String allMessages = greetingService.getAllMessages();
+        
+        assertTrue(allMessages.contains("你好"));
+        assertTrue(allMessages.contains("Hello"));
+        assertTrue(allMessages.contains("Message from Implementation 1"));
+        assertTrue(allMessages.contains("Message from Implementation 2"));
+    }
 } 
