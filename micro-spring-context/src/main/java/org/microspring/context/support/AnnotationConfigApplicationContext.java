@@ -32,6 +32,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Map;
 
 public class AnnotationConfigApplicationContext extends AbstractApplicationContext {
     private String basePackage;
@@ -421,10 +422,16 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         
         // 处理字段注入的依赖关系
         for (Field field : clazz.getDeclaredFields()) {
-            Autowired autowired = field.getAnnotation(Autowired.class);
-            if (autowired != null) {
+            if (field.isAnnotationPresent(Autowired.class)) {
                 String propertyName = field.getName();
                 Qualifier qualifier = field.getAnnotation(Qualifier.class);
+                Class<?> fieldType = field.getType();
+
+                // 跳过集合类型的字段，让 DefaultBeanFactory 处理
+                if (List.class.isAssignableFrom(fieldType) || 
+                    Map.class.isAssignableFrom(fieldType)) {
+                    continue;
+                }
                 
                 // 如果有@Qualifier注解，使用指定的名称
                 // 否则使用类型对应的默认bean名称（类名首字母小写）
@@ -432,12 +439,12 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 if (qualifier != null) {
                     refName = qualifier.value();
                 } else {
-                    String targetClassName = field.getType().getSimpleName();
+                    String targetClassName = fieldType.getSimpleName();
                     refName = Character.toLowerCase(targetClassName.charAt(0)) + 
                              targetClassName.substring(1);
                 }
                 
-                PropertyValue pv = new PropertyValue(propertyName, refName, field.getType(), true);
+                PropertyValue pv = new PropertyValue(propertyName, refName, fieldType, true);
                 bd.addPropertyValue(pv);
             }
         }
@@ -453,6 +460,13 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                              propertyName.substring(1);
                 
                 Class<?> paramType = method.getParameterTypes()[0];
+                
+                // 跳过集合类型的参数，让 DefaultBeanFactory 处理
+                if (List.class.isAssignableFrom(paramType) || 
+                    Map.class.isAssignableFrom(paramType)) {
+                    continue;
+                }
+                
                 Qualifier qualifier = method.getAnnotation(Qualifier.class);
                 
                 // 如果有@Qualifier注解，使用指定的名称

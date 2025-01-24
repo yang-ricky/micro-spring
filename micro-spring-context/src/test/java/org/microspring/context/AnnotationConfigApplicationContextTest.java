@@ -1,9 +1,20 @@
 package org.microspring.context;
 
 import org.junit.Test;
+import org.microspring.beans.factory.annotation.Autowired;
 import org.microspring.context.support.AnnotationConfigApplicationContext;
+import org.microspring.stereotype.Component;
 import org.microspring.test.annotation.*;
+import org.microspring.test.collection.DataSource;
+import org.microspring.test.collection.Pet;
+import org.microspring.test.collection.CollectionConstructorBean;
+import org.microspring.test.collection.CollectionFieldInjectBean;
+import org.microspring.test.collection.CollectionSetterBean;
+
 import static org.junit.Assert.*;
+
+import java.util.List;
+import java.util.Map;
 
 public class AnnotationConfigApplicationContextTest {
     
@@ -152,5 +163,159 @@ public class AnnotationConfigApplicationContextTest {
         assertTrue(allMessages.contains("Hello"));
         assertTrue(allMessages.contains("Message from Implementation 1"));
         assertTrue(allMessages.contains("Message from Implementation 2"));
+    }
+
+    @Test
+    public void testConstructorInjectionCollection() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.collection");
+        
+        CollectionConstructorBean bean = context.getBean(CollectionConstructorBean.class);
+        assertNotNull("CollectionConstructorBean should not be null", bean);
+        
+        // 验证 List<Pet> 注入
+        List<Pet> pets = bean.getPets();
+        assertNotNull("Pets list should not be null", pets);
+        assertEquals("Should have 3 pets", 3, pets.size());
+        
+        // 验证每个 Pet 实现都被正确注入
+        boolean hasHamster = false;
+        boolean hasRabbit = false;
+        boolean hasTurtle = false;
+        
+        for (Pet pet : pets) {
+            String name = pet.getName().toLowerCase();
+            switch (name) {
+                case "hamster":
+                    hasHamster = true;
+                    break;
+                case "rabbit":
+                    hasRabbit = true;
+                    break;
+                case "turtle":
+                    hasTurtle = true;
+                    break;
+            }
+        }
+        
+        assertTrue("Should have a Hamster", hasHamster);
+        assertTrue("Should have a Rabbit", hasRabbit);
+        assertTrue("Should have a Turtle", hasTurtle);
+        
+        // 验证 Map<String, DataSource> 注入
+        Map<String, DataSource> dataSources = bean.getDataSources();
+        assertNotNull("DataSources map should not be null", dataSources);
+        assertEquals("Should have 2 data sources", 2, dataSources.size());
+        
+        // 验证每个 DataSource 实现都被正确注入
+        DataSource mongoDS = dataSources.get("mongoDataSource");
+        DataSource redisDS = dataSources.get("redisDataSource");
+        
+        assertNotNull("MongoDB data source should not be null", mongoDS);
+        assertNotNull("Redis data source should not be null", redisDS);
+        assertEquals("MongoDB", mongoDS.getType());
+        assertEquals("Redis", redisDS.getType());
+    }
+
+    @Test
+    public void testFileInjectionCollectionInjection() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.collection");
+        
+        CollectionFieldInjectBean holder = context.getBean(CollectionFieldInjectBean.class);
+        assertNotNull("CollectionHolder should not be null", holder);
+        
+        // 验证 List<Pet> 注入
+        List<Pet> pets = holder.getPets();
+        assertNotNull("Pets list should not be null", pets);
+        assertEquals("Should have 3 pets", 3, pets.size());
+        
+        // 验证每个 Pet 实现都被正确注入
+        boolean hasHamster = false;
+        boolean hasRabbit = false;
+        boolean hasTurtle = false;
+        
+        for (Pet pet : pets) {
+            String name = pet.getName().toLowerCase();
+            switch (name) {
+                case "hamster":
+                    hasHamster = true;
+                    break;
+                case "rabbit":
+                    hasRabbit = true;
+                    break;
+                case "turtle":
+                    hasTurtle = true;
+                    break;
+            }
+        }
+        
+        assertTrue("Should have a Hamster", hasHamster);
+        assertTrue("Should have a Rabbit", hasRabbit);
+        assertTrue("Should have a Turtle", hasTurtle);
+        
+        // 验证 Map<String, DataSource> 注入
+        Map<String, DataSource> dataSources = holder.getDataSources();
+        assertNotNull("DataSources map should not be null", dataSources);
+        assertEquals("Should have 2 data sources", 2, dataSources.size());
+        
+        // 验证每个 DataSource 实现都被正确注入
+        DataSource mongoDS = dataSources.get("mongoDataSource");
+        DataSource redisDS = dataSources.get("redisDataSource");
+        
+        assertNotNull("MongoDB data source should not be null", mongoDS);
+        assertNotNull("Redis data source should not be null", redisDS);
+        assertEquals("MongoDB", mongoDS.getType());
+        assertEquals("Redis", redisDS.getType());
+    }
+
+       @Test
+    public void testSetterInjectionCollection() {
+        AnnotationConfigApplicationContext context = 
+            new AnnotationConfigApplicationContext("org.microspring.test.collection");
+        
+        CollectionSetterBean holder = context.getBean(CollectionSetterBean.class);
+        assertNotNull("CollectionHolder should not be null", holder);
+        
+        // 验证 List<Pet> 注入
+        assertNotNull("Pets list should not be null", holder.getPets());
+        assertEquals("Should have 3 pets", 3, holder.getPets().size());
+        
+        // 验证每个 Pet 实现都被正确注入
+        boolean hasHamster = false;
+        boolean hasRabbit = false;
+        boolean hasTurtle = false;
+        
+        for (Pet pet : holder.getPets()) {
+            String name = pet.getName().toLowerCase();
+            switch (name) {
+                case "hamster":
+                    hasHamster = true;
+                    break;
+                case "rabbit":
+                    hasRabbit = true;
+                    break;
+                case "turtle":
+                    hasTurtle = true;
+                    break;
+            }
+        }
+        
+        assertTrue("Should have a Hamster", hasHamster);
+        assertTrue("Should have a Rabbit", hasRabbit);
+        assertTrue("Should have a Turtle", hasTurtle);
+        
+        // 验证 Map<String, DataSource> 注入
+        assertNotNull("DataSources map should not be null", holder.getDataSources());
+        assertEquals("Should have 2 data sources", 2, holder.getDataSources().size());
+        
+        // 验证每个 DataSource 实现都被正确注入
+        DataSource mongoDS = holder.getDataSources().get("mongoDataSource");
+        DataSource redisDS = holder.getDataSources().get("redisDataSource");
+        
+        assertNotNull("MongoDB data source should not be null", mongoDS);
+        assertNotNull("Redis data source should not be null", redisDS);
+        assertEquals("MongoDB", mongoDS.getType());
+        assertEquals("Redis", redisDS.getType());
     }
 } 

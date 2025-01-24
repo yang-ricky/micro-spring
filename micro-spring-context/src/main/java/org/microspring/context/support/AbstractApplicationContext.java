@@ -158,7 +158,34 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                         }
                     }
                     
-                    if (qualifier != null) {
+                    if (List.class.isAssignableFrom(paramTypes[i])) {
+                        // 获取泛型类型
+                        Type paramType = method.getGenericParameterTypes()[i];
+                        if (paramType instanceof ParameterizedType) {
+                            Type elementType = ((ParameterizedType) paramType).getActualTypeArguments()[0];
+                            if (elementType instanceof Class) {
+                                args[i] = beanFactory.getBeansByType((Class<?>) elementType);
+                            }
+                        }
+                    } else if (Map.class.isAssignableFrom(paramTypes[i])) {
+                        // 获取泛型类型
+                        Type paramType = method.getGenericParameterTypes()[i];
+                        if (paramType instanceof ParameterizedType) {
+                            Type[] typeArgs = ((ParameterizedType) paramType).getActualTypeArguments();
+                            if (typeArgs.length == 2 && typeArgs[1] instanceof Class) {
+                                Class<?> valueType = (Class<?>) typeArgs[1];
+                                Map<String, Object> matchingBeans = new HashMap<>();
+                                // 获取所有匹配类型的bean
+                                for (String name : beanFactory.getBeanDefinitionNames()) {
+                                    BeanDefinition bd = beanFactory.getBeanDefinition(name);
+                                    if (valueType.isAssignableFrom(bd.getBeanClass())) {
+                                        matchingBeans.put(name, beanFactory.getBean(name));
+                                    }
+                                }
+                                args[i] = matchingBeans;
+                            }
+                        }
+                    } else if (qualifier != null) {
                         args[i] = beanFactory.getBean(qualifier.value());
                     } else {
                         args[i] = beanFactory.getBean(paramTypes[i]);

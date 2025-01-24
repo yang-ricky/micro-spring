@@ -520,7 +520,42 @@ public class DefaultBeanFactory implements BeanFactory {
                 // 检查是否有 @Qualifier 注解
                 Qualifier qualifier = param.getAnnotation(Qualifier.class);
                 Object argValue;
-                if (qualifier != null) {
+                
+                if (List.class.isAssignableFrom(paramType)) {
+                    // 处理 List 类型参数
+                    Type paramGenericType = param.getParameterizedType();
+                    if (paramGenericType instanceof ParameterizedType) {
+                        Type elementType = ((ParameterizedType) paramGenericType).getActualTypeArguments()[0];
+                        if (elementType instanceof Class) {
+                            argValue = getBeansByType((Class<?>) elementType);
+                        } else {
+                            argValue = new ArrayList<>();
+                        }
+                    } else {
+                        argValue = new ArrayList<>();
+                    }
+                } else if (Map.class.isAssignableFrom(paramType)) {
+                    // 处理 Map 类型参数
+                    Type paramGenericType = param.getParameterizedType();
+                    if (paramGenericType instanceof ParameterizedType) {
+                        Type[] typeArgs = ((ParameterizedType) paramGenericType).getActualTypeArguments();
+                        if (typeArgs.length == 2 && typeArgs[0] == String.class && typeArgs[1] instanceof Class) {
+                            Class<?> valueType = (Class<?>) typeArgs[1];
+                            Map<String, Object> matchingBeans = new HashMap<>();
+                            for (String name : getBeanDefinitionNames()) {
+                                BeanDefinition beanDef = getBeanDefinition(name);
+                                if (valueType.isAssignableFrom(beanDef.getBeanClass())) {
+                                    matchingBeans.put(name, getBean(name));
+                                }
+                            }
+                            argValue = matchingBeans;
+                        } else {
+                            argValue = new HashMap<>();
+                        }
+                    } else {
+                        argValue = new HashMap<>();
+                    }
+                } else if (qualifier != null) {
                     // 如果有@Qualifier，按名称查找
                     String beanName = qualifier.value();
                     argValue = getBean(beanName);
@@ -531,7 +566,7 @@ public class DefaultBeanFactory implements BeanFactory {
                     } catch (RuntimeException e) {
                         // 如果按类型查找失败，尝试使用默认的命名规则
                         String defaultBeanName = Character.toLowerCase(paramType.getSimpleName().charAt(0)) + 
-                                              paramType.getSimpleName().substring(1);
+                                               paramType.getSimpleName().substring(1);
                         argValue = getBean(defaultBeanName);
                     }
                 }
@@ -1000,7 +1035,7 @@ public class DefaultBeanFactory implements BeanFactory {
         return null;
     }
 
-    private List<Object> getBeansByType(Class<?> type) {
+    public List<Object> getBeansByType(Class<?> type) {
         List<Object> matchingBeans = new ArrayList<>();
         for (String name : getBeanDefinitionNames()) {
             BeanDefinition beanDef = getBeanDefinition(name);
