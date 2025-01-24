@@ -12,6 +12,8 @@ import java.lang.reflect.Field;
 import java.lang.annotation.Annotation;
 import java.util.HashSet;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
+import java.lang.reflect.ParameterizedType;
 
 import org.microspring.core.io.XmlBeanDefinitionReader;
 import org.microspring.core.beans.ConstructorArg;
@@ -252,10 +254,13 @@ public class DefaultBeanFactory implements BeanFactory {
         // 检查 prototype 作用域的循环依赖
         if (!bd.isSingleton()) {
             for (PropertyValue pv : bd.getPropertyValues()) {
-                if (pv.isRef() && isInCreation(pv.getRef())) {
-                    throw new CircularDependencyException(
-                        "Cannot resolve circular reference between prototype beans: " + 
-                        bd.getBeanClass().getSimpleName() + " and " + pv.getRef());
+                if (pv.isRef()) {
+                    Object ref = pv.getRef();
+                    if (ref instanceof String && isInCreation((String) ref)) {
+                        throw new CircularDependencyException(
+                            "Cannot resolve circular reference between prototype beans: " + 
+                            bd.getBeanClass().getSimpleName() + " and " + ref);
+                    }
                 }
             }
         }
@@ -267,19 +272,60 @@ public class DefaultBeanFactory implements BeanFactory {
             
             Object value;
             if (pv.isRef()) {
-                String refName = pv.getRef();
-                try {
-                    // 先尝试从缓存中获取
-                    value = getSingleton(refName, true);
-                    if (value == null) {
-                        value = doGetBean(refName, null);
+                Object ref = pv.getRef();
+                if (ref instanceof String) {
+                    // 处理单个引用
+                    String refName = (String) ref;
+                    try {
+                        value = getSingleton(refName, true);
+                        if (value == null) {
+                            value = doGetBean(refName, null);
+                        }
+                    } catch (Exception e) {
+                        if (e instanceof CircularDependencyException) {
+                            throw e;
+                        }
+                        throw new CircularDependencyException(
+                            "Error injecting reference '" + refName + "'", e);
                     }
-                } catch (Exception e) {
-                    if (e instanceof CircularDependencyException) {
-                        throw e;
+                } else if (ref instanceof List) {
+                    // 处理List类型的引用
+                    List<?> refList = (List<?>) ref;
+                    List<Object> resolvedList = new ArrayList<>();
+                    for (Object item : refList) {
+                        if (item instanceof String) {
+                            String refName = (String) item;
+                            Object refValue = getSingleton(refName, true);
+                            if (refValue == null) {
+                                refValue = doGetBean(refName, null);
+                            }
+                            resolvedList.add(refValue);
+                        } else {
+                            resolvedList.add(item);
+                        }
                     }
-                    throw new CircularDependencyException(
-                        "Error injecting reference '" + refName + "'", e);
+                    value = resolvedList;
+                } else if (ref instanceof Map) {
+                    // 处理Map类型的引用
+                    Map<?, ?> refMap = (Map<?, ?>) ref;
+                    Map<Object, Object> resolvedMap = new HashMap<>();
+                    for (Map.Entry<?, ?> entry : refMap.entrySet()) {
+                        Object key = entry.getKey();
+                        Object val = entry.getValue();
+                        if (val instanceof String) {
+                            String refName = (String) val;
+                            Object refValue = getSingleton(refName, true);
+                            if (refValue == null) {
+                                refValue = doGetBean(refName, null);
+                            }
+                            resolvedMap.put(key, refValue);
+                        } else {
+                            resolvedMap.put(key, val);
+                        }
+                    }
+                    value = resolvedMap;
+                } else {
+                    value = ref;
                 }
             } else {
                 value = pv.getValue();
@@ -294,14 +340,57 @@ public class DefaultBeanFactory implements BeanFactory {
             if (autowired != null) {
                 field.setAccessible(true);
                 
-                // 获取依赖的bean名称
+                Class<?> fieldType = field.getType();
+                
+                // 处理集合类型
+                if (List.class.isAssignableFrom(fieldType)) {
+                    // 获取List的泛型类型
+                    Type genericType = field.getGenericType();
+                    if (genericType instanceof ParameterizedType) {
+                        Class<?> elementType = (Class<?>) ((ParameterizedType) genericType).getActualTypeArguments()[0];
+                        List<Object> matchingBeans = getBeansByType(elementType);
+                        field.set(bean, matchingBeans);
+                    } else {
+                        // 如果没有泛型参数，设置空列表
+                        field.set(bean, new ArrayList<>());
+                    }
+                    continue;
+                }
+                
+                // 处理Map类型
+                if (Map.class.isAssignableFrom(fieldType)) {
+                    // 获取Map的泛型类型
+                    Type genericType = field.getGenericType();
+                    if (genericType instanceof ParameterizedType) {
+                        ParameterizedType paramType = (ParameterizedType) genericType;
+                        Type[] typeArgs = paramType.getActualTypeArguments();
+                        // 只处理 Map<String, SomeType> 类型
+                        if (typeArgs[0] == String.class) {
+                            Class<?> valueType = (Class<?>) typeArgs[1];
+                            Map<String, Object> matchingBeans = new HashMap<>();
+                            // 获取所有匹配类型的bean
+                            for (String name : getBeanDefinitionNames()) {
+                                BeanDefinition beanDef = getBeanDefinition(name);
+                                if (valueType.isAssignableFrom(beanDef.getBeanClass())) {
+                                    matchingBeans.put(name, getBean(name));
+                                }
+                            }
+                            field.set(bean, matchingBeans);
+                        }
+                    } else {
+                        // 如果没有泛型参数，设置空Map
+                        field.set(bean, new HashMap<>());
+                    }
+                    continue;
+                }
+                
+                // 处理普通类型
                 String refName;
                 Qualifier qualifier = field.getAnnotation(Qualifier.class);
                 if (qualifier != null) {
                     refName = qualifier.value();
                 } else {
                     // 使用字段类型作为依赖的bean名称
-                    Class<?> fieldType = field.getType();
                     refName = Character.toLowerCase(fieldType.getSimpleName().charAt(0)) 
                              + fieldType.getSimpleName().substring(1);
                 }
@@ -310,7 +399,7 @@ public class DefaultBeanFactory implements BeanFactory {
                     // 先尝试从缓存中获取
                     Object value = getSingleton(refName, true);
                     if (value == null) {
-                        value = doGetBean(refName, field.getType());
+                        value = doGetBean(refName, fieldType);
                     }
                     field.set(bean, value);
                 } catch (Exception e) {
@@ -909,5 +998,16 @@ public class DefaultBeanFactory implements BeanFactory {
             return '\u0000';
         }
         return null;
+    }
+
+    private List<Object> getBeansByType(Class<?> type) {
+        List<Object> matchingBeans = new ArrayList<>();
+        for (String name : getBeanDefinitionNames()) {
+            BeanDefinition beanDef = getBeanDefinition(name);
+            if (type.isAssignableFrom(beanDef.getBeanClass())) {
+                matchingBeans.add(getBean(name));
+            }
+        }
+        return matchingBeans;
     }
 } 

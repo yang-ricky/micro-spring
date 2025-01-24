@@ -6,6 +6,7 @@ import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.DefaultBeanDefinition;
 import org.microspring.core.beans.ConstructorArg;
 import org.microspring.core.beans.PropertyValue;
+import org.microspring.core.beans.RuntimeBeanReference;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -77,7 +78,6 @@ public class XmlBeanDefinitionReader {
                     String ref = constructorEle.getAttribute("ref");
                     String value = constructorEle.getAttribute("value");
                     
-                    
                     if (ref != null && !ref.isEmpty()) {
                         ConstructorArg arg = new ConstructorArg(ref, null, Object.class);
                         bd.addConstructorArg(arg);
@@ -108,13 +108,14 @@ public class XmlBeanDefinitionReader {
         String value = propElement.getAttribute("value");
         String ref = propElement.getAttribute("ref");
         
-        
         // 处理List类型的属性
         NodeList listNodes = propElement.getElementsByTagName("list");
         if (listNodes.getLength() > 0) {
             Element listElement = (Element) listNodes.item(0);
-            List<String> list = parseListElement(listElement);
-            bd.addPropertyValue(new PropertyValue(name, list, List.class));
+            List<Object> list = parseListElement(listElement);
+            // 如果列表中包含引用，将整个属性标记为引用类型
+            boolean containsRefs = listElement.getElementsByTagName("ref").getLength() > 0;
+            bd.addPropertyValue(new PropertyValue(name, list, List.class, containsRefs));
             return;
         }
         
@@ -123,7 +124,10 @@ public class XmlBeanDefinitionReader {
         if (mapNodes.getLength() > 0) {
             Element mapElement = (Element) mapNodes.item(0);
             Map<String, Object> map = parseMapElement(mapElement);
-            bd.addPropertyValue(new PropertyValue(name, map, Map.class));
+            // 如果Map中包含引用，将整个属性标记为引用类型
+            boolean containsRefs = mapElement.getElementsByTagName("ref").getLength() > 0 || 
+                                 hasAttributeWithValue(mapElement, "value-ref");
+            bd.addPropertyValue(new PropertyValue(name, map, Map.class, containsRefs));
             return;
         }
         
@@ -139,12 +143,35 @@ public class XmlBeanDefinitionReader {
         }
     }
     
-    private List<String> parseListElement(Element listElement) {
-        List<String> list = new ArrayList<>();
+    private boolean hasAttributeWithValue(Element element, String attributeName) {
+        NodeList entries = element.getElementsByTagName("entry");
+        for (int i = 0; i < entries.getLength(); i++) {
+            Element entry = (Element) entries.item(i);
+            String value = entry.getAttribute(attributeName);
+            if (value != null && !value.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private List<Object> parseListElement(Element listElement) {
+        List<Object> list = new ArrayList<>();
+        
+        // 处理值类型
         NodeList values = listElement.getElementsByTagName("value");
         for (int i = 0; i < values.getLength(); i++) {
             list.add(values.item(i).getTextContent());
         }
+        
+        // 处理引用类型
+        NodeList refs = listElement.getElementsByTagName("ref");
+        for (int i = 0; i < refs.getLength(); i++) {
+            Element refElement = (Element) refs.item(i);
+            String beanRef = refElement.getAttribute("bean");
+            list.add(beanRef);  // 直接添加引用名称，不使用 RuntimeBeanReference
+        }
+        
         return list;
     }
     
@@ -154,14 +181,43 @@ public class XmlBeanDefinitionReader {
         for (int i = 0; i < entries.getLength(); i++) {
             Element entry = (Element) entries.item(i);
             String key = entry.getAttribute("key");
-            String strValue = entry.getAttribute("value");
             
-            // 尝试将值转换为整数
-            try {
-                map.put(key, Integer.parseInt(strValue));
-            } catch (NumberFormatException e) {
-                // 如果转换失败，保持字符串类型
-                map.put(key, strValue);
+            // 1. 检查是否有 value-ref 属性
+            String valueRef = entry.getAttribute("value-ref");
+            if (valueRef != null && !valueRef.isEmpty()) {
+                map.put(key, valueRef);  // 直接添加引用名称
+                continue;
+            }
+            
+            // 2. 检查是否有 value 属性
+            String value = entry.getAttribute("value");
+            if (value != null && !value.isEmpty()) {
+                try {
+                    map.put(key, Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    map.put(key, value);
+                }
+                continue;
+            }
+            
+            // 3. 检查是否有 ref 子标签
+            NodeList refNodes = entry.getElementsByTagName("ref");
+            if (refNodes.getLength() > 0) {
+                Element refElement = (Element) refNodes.item(0);
+                String beanRef = refElement.getAttribute("bean");
+                map.put(key, beanRef);  // 直接添加引用名称
+                continue;
+            }
+            
+            // 4. 检查是否有 value 子标签
+            NodeList valueNodes = entry.getElementsByTagName("value");
+            if (valueNodes.getLength() > 0) {
+                String textContent = valueNodes.item(0).getTextContent();
+                try {
+                    map.put(key, Integer.parseInt(textContent));
+                } catch (NumberFormatException e) {
+                    map.put(key, textContent);
+                }
             }
         }
         return map;

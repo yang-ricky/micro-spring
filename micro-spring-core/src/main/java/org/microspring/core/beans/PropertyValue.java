@@ -21,5 +21,16 @@ public class PropertyValue {
     public Object getValue() { return value; }
     public Class<?> getType() { return type; }
     public boolean isRef() { return isRef; }
-    public String getRef() { return isRef ? (String)value : null; }
+    
+    public Object getRef() {
+        if (!isRef) {
+            return null;
+        }
+        // 如果是普通引用，返回字符串
+        if (value instanceof String) {
+            return value;
+        }
+        // 如果是集合引用，直接返回集合
+        return value;
+    }
 } 

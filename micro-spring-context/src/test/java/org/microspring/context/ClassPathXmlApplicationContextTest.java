@@ -78,7 +78,7 @@ public class ClassPathXmlApplicationContextTest {
     }
     
     @Test
-    public void testCollectionInjection() {
+    public void testValueCollectionInjection() {
         ApplicationContext context = new ClassPathXmlApplicationContext("context-test.xml");
         
         CollectionBean bean = context.getBean("collectionBean", CollectionBean.class);
@@ -97,6 +97,28 @@ public class ClassPathXmlApplicationContextTest {
         assertEquals(2, map.size());
         assertEquals("value1", map.get("key1"));
         assertEquals("value2", map.get("key2"));
+    }
+    
+    @Test
+    public void testReferenceCollectionInjection() {
+        ApplicationContext context = new ClassPathXmlApplicationContext("context-test.xml");
+        
+        ReferenceCollectionBean bean = context.getBean("referenceCollectionBean", ReferenceCollectionBean.class);
+        assertNotNull(bean);
+        
+        // 测试List<TestBean>注入
+        List<TestBean> testBeans = bean.getTestBeans();
+        assertNotNull(testBeans);
+        assertEquals(2, testBeans.size());
+        assertEquals("bean1", testBeans.get(0).getName());
+        assertEquals("bean2", testBeans.get(1).getName());
+        
+        // 测试Map<String, TestBean>注入
+        Map<String, TestBean> testBeanMap = bean.getTestBeanMap();
+        assertNotNull(testBeanMap);
+        assertEquals(2, testBeanMap.size());
+        assertEquals("bean1", testBeanMap.get("bean1").getName());
+        assertEquals("bean2", testBeanMap.get("bean2").getName());
     }
     
     @Test

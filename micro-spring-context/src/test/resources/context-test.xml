@@ -59,6 +59,31 @@
         </property>
     </bean>
     
+    <!-- 引用类型集合注入测试 -->
+    <bean id="testBean1" class="org.microspring.test.xml.TestBean">
+        <property name="name" value="bean1"/>
+    </bean>
+    
+    <bean id="testBean2" class="org.microspring.test.xml.TestBean">
+        <property name="name" value="bean2"/>
+    </bean>
+    
+    <bean id="referenceCollectionBean" 
+          class="org.microspring.test.xml.ReferenceCollectionBean">
+        <property name="testBeans">
+            <list>
+                <ref bean="testBean1"/>
+                <ref bean="testBean2"/>
+            </list>
+        </property>
+        <property name="testBeanMap">
+            <map>
+                <entry key="bean1" value-ref="testBean1"/>
+                <entry key="bean2" value-ref="testBean2"/>
+            </map>
+        </property>
+    </bean>
+    
     <!-- 循环依赖测试 -->
     <bean id="circularA" 
           class="org.microspring.test.xml.CircularA">
