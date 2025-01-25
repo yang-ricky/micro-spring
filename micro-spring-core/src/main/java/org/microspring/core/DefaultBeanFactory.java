@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.lang.reflect.ParameterizedType;
+import javax.annotation.Resource;
 
 import org.microspring.core.io.XmlBeanDefinitionReader;
 import org.microspring.core.beans.ConstructorArg;
@@ -161,7 +162,6 @@ public class DefaultBeanFactory implements BeanFactory {
 
             return bean;
         } catch (BeanCreationException e) {
-            // BeanCreationException 直接抛出，不再包装
             throw e;
         } catch (CircularDependencyException e) {
             throw e;
@@ -204,24 +204,28 @@ public class DefaultBeanFactory implements BeanFactory {
     }
 
     protected Object getSingleton(String beanName, boolean allowEarlyReference) {
-        Object bean = this.singletonObjects.get(beanName);
-        if (bean == null && isInCreation(beanName)) {
+        // 1. 先从一级缓存找
+        Object singletonObject = this.singletonObjects.get(beanName);
+        if (singletonObject == null && isInCreation(beanName)) {
             synchronized (this.singletonObjects) {
-                bean = this.earlySingletonObjects.get(beanName);
-                if (bean == null && allowEarlyReference) {
-                    ObjectFactory<?> factory = this.singletonFactories.get(beanName);
-                    if (factory != null) {
-                        bean = factory.getObject(); // => 可能是 代理
-                        this.earlySingletonObjects.put(beanName, bean);
+                // 2. 从二级缓存找
+                singletonObject = this.earlySingletonObjects.get(beanName);
+                if (singletonObject == null && allowEarlyReference) {
+                    // 3. 从三级缓存找
+                    ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
+                    if (singletonFactory != null) {
+                        // 从三级缓存获取，然后放入二级缓存
+                        singletonObject = singletonFactory.getObject();
+                        this.earlySingletonObjects.put(beanName, singletonObject);
                         this.singletonFactories.remove(beanName);
                     }
                 }
             }
         }
-        return bean;
+        return singletonObject;
     }
 
-    protected void invokeInitMethod(String beanName, Object bean, BeanDefinition bd) {
+    private void invokeInitMethod(String beanName, Object bean, BeanDefinition bd) {
         String initMethodName = bd.getInitMethodName();
         if (initMethodName != null && !initMethodName.isEmpty()) {
             try {
@@ -412,7 +416,174 @@ public class DefaultBeanFactory implements BeanFactory {
             }
         }
 
-        // 3. 处理 setter 方法上的 @Value 注解
+        // 2.1 处理 @Resource 注解的字段注入
+        for (Field field : bd.getBeanClass().getDeclaredFields()) {
+            Resource resource = field.getAnnotation(Resource.class);
+            if (resource != null) {
+                field.setAccessible(true);
+                Class<?> fieldType = field.getType();
+                
+                // 处理集合类型
+                if (List.class.isAssignableFrom(fieldType)) {
+                    // 获取List的泛型类型
+                    Type genericType = field.getGenericType();
+                    if (genericType instanceof ParameterizedType) {
+                        Class<?> elementType = (Class<?>) ((ParameterizedType) genericType).getActualTypeArguments()[0];
+                        List<Object> matchingBeans = getBeansByType(elementType);
+                        field.set(bean, matchingBeans);
+                    } else {
+                        // 如果没有泛型参数，设置空列表
+                        field.set(bean, new ArrayList<>());
+                    }
+                    continue;
+                }
+                
+                if (Map.class.isAssignableFrom(fieldType)) {
+                    // 获取Map的泛型类型
+                    Type genericType = field.getGenericType();
+                    if (genericType instanceof ParameterizedType) {
+                        ParameterizedType paramType = (ParameterizedType) genericType;
+                        Type[] typeArgs = paramType.getActualTypeArguments();
+                        // 只处理 Map<String, SomeType> 类型
+                        if (typeArgs[0] == String.class) {
+                            Class<?> valueType = (Class<?>) typeArgs[1];
+                            Map<String, Object> matchingBeans = new HashMap<>();
+                            // 获取所有匹配类型的bean
+                            for (String name : getBeanDefinitionNames()) {
+                                BeanDefinition beanDef = getBeanDefinition(name);
+                                if (valueType.isAssignableFrom(beanDef.getBeanClass())) {
+                                    matchingBeans.put(name, getBean(name));
+                                }
+                            }
+                            field.set(bean, matchingBeans);
+                        }
+                    } else {
+                        // 如果没有泛型参数，设置空Map
+                        field.set(bean, new HashMap<>());
+                    }
+                    continue;
+                }
+                
+                // 处理普通类型
+                // 1. 首先按name查找
+                String refName = resource.name();
+                if (refName.isEmpty()) {
+                    // 如果没有指定name，使用字段名
+                    refName = field.getName();
+                }
+                
+                try {
+                    Object value = null;
+                    // 先尝试按名称查找
+                    if (containsBean(refName)) {
+                        value = getSingleton(refName, true);
+                        if (value == null) {
+                            value = doGetBean(refName, fieldType);
+                        }
+                    }
+                    
+                    // 2. 如果按名称没找到，降级为按类型查找
+                    if (value == null) {
+                        value = getBean(fieldType);
+                    }
+                    
+                    field.set(bean, value);
+                } catch (Exception e) {
+                    if (e instanceof CircularDependencyException) {
+                        throw e;
+                    }
+                    throw new CircularDependencyException(
+                        "Error injecting resource field '" + field.getName() + "'", e);
+                }
+            }
+        }
+
+        // 3. 处理方法注入
+        for (Method method : bd.getBeanClass().getDeclaredMethods()) {
+            // 处理 @Resource 注解
+            Resource resource = method.getAnnotation(Resource.class);
+            if (resource != null && method.getParameterCount() == 1) {
+                method.setAccessible(true);
+                Class<?> paramType = method.getParameterTypes()[0];
+                
+                // 处理集合类型
+                if (List.class.isAssignableFrom(paramType)) {
+                    // 获取泛型类型
+                    Type genericType = method.getGenericParameterTypes()[0];
+                    if (genericType instanceof ParameterizedType) {
+                        Type elementType = ((ParameterizedType) genericType).getActualTypeArguments()[0];
+                        if (elementType instanceof Class) {
+                            List<Object> matchingBeans = getBeansByType((Class<?>) elementType);
+                            method.invoke(bean, matchingBeans);
+                        }
+                    } else {
+                        // 如果没有泛型参数，注入空列表
+                        method.invoke(bean, new ArrayList<>());
+                    }
+                    continue;
+                }
+                
+                if (Map.class.isAssignableFrom(paramType)) {
+                    // 获取泛型类型
+                    Type genericType = method.getGenericParameterTypes()[0];
+                    if (genericType instanceof ParameterizedType) {
+                        Type[] typeArgs = ((ParameterizedType) genericType).getActualTypeArguments();
+                        if (typeArgs.length == 2 && typeArgs[0] == String.class && typeArgs[1] instanceof Class) {
+                            Class<?> valueType = (Class<?>) typeArgs[1];
+                            Map<String, Object> matchingBeans = new HashMap<>();
+                            for (String name : getBeanDefinitionNames()) {
+                                BeanDefinition beanDef = getBeanDefinition(name);
+                                if (valueType.isAssignableFrom(beanDef.getBeanClass())) {
+                                    matchingBeans.put(name, getBean(name));
+                                }
+                            }
+                            method.invoke(bean, matchingBeans);
+                        }
+                    } else {
+                        // 如果没有泛型参数，注入空Map
+                        method.invoke(bean, new HashMap<>());
+                    }
+                    continue;
+                }
+                
+                // 处理普通类型
+                // 1. 首先按name查找
+                String refName = resource.name();
+                if (refName.isEmpty()) {
+                    // 如果没有指定name，使用方法名去掉"set"后的部分
+                    if (method.getName().startsWith("set")) {
+                        refName = method.getName().substring(3);
+                        refName = Character.toLowerCase(refName.charAt(0)) + refName.substring(1);
+                    } else {
+                        // 如果不是setter方法，使用参数类型的首字母小写作为bean名称
+                        refName = Character.toLowerCase(paramType.getSimpleName().charAt(0)) + 
+                                 paramType.getSimpleName().substring(1);
+                    }
+                }
+                
+                try {
+                    Object value = null;
+                    // 先尝试按名称查找
+                    if (containsBean(refName)) {
+                        value = getSingleton(refName, true);
+                        if (value == null) {
+                            value = doGetBean(refName, paramType);
+                        }
+                    }
+                    
+                    // 2. 如果按名称没找到，降级为按类型查找
+                    if (value == null) {
+                        value = getBean(paramType);
+                    }
+                    
+                    method.invoke(bean, value);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to inject resource method: " + method.getName(), e);
+                }
+            }
+        }
+
+        // 4. 处理 @Value 注解
         for (Method method : bd.getBeanClass().getDeclaredMethods()) {
             if (method.isAnnotationPresent(Value.class)) {
                 Value valueAnnotation = method.getAnnotation(Value.class);
@@ -847,6 +1018,7 @@ public class DefaultBeanFactory implements BeanFactory {
     public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
         this.beanPostProcessors.add(beanPostProcessor);
     }
+
     private Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName) {
         Object result = existingBean;
         for (BeanPostProcessor processor : beanPostProcessors) {
@@ -1036,13 +1208,13 @@ public class DefaultBeanFactory implements BeanFactory {
     }
 
     public List<Object> getBeansByType(Class<?> type) {
-        List<Object> matchingBeans = new ArrayList<>();
+        List<Object> result = new ArrayList<>();
         for (String name : getBeanDefinitionNames()) {
-            BeanDefinition beanDef = getBeanDefinition(name);
-            if (type.isAssignableFrom(beanDef.getBeanClass())) {
-                matchingBeans.add(getBean(name));
+            BeanDefinition bd = getBeanDefinition(name);
+            if (type.isAssignableFrom(bd.getBeanClass())) {
+                result.add(getBean(name));
             }
         }
-        return matchingBeans;
+        return result;
     }
 } 

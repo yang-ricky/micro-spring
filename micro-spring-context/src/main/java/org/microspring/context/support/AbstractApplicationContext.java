@@ -19,6 +19,7 @@ import org.microspring.context.event.SimpleApplicationEventMulticaster;
 import org.microspring.context.event.EventListenerMethodProcessor;
 import org.microspring.context.event.SmartApplicationListener;
 import org.microspring.core.BeanPostProcessor;
+import javax.annotation.Resource;
 
 import java.util.List;
 import java.lang.reflect.Field;
@@ -139,7 +140,46 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             }
         }
         
-        // 2. 处理方法注入（包括setter方法和普通方法）
+        // 2. 处理 @Resource 注解的字段注入
+        for (Field field : clazz.getDeclaredFields()) {
+            Resource resource = field.getAnnotation(Resource.class);
+            if (resource != null) {
+                field.setAccessible(true);
+                Class<?> fieldType = field.getType();
+                
+                // 跳过集合类型
+                if (List.class.isAssignableFrom(fieldType) || 
+                    Map.class.isAssignableFrom(fieldType)) {
+                    continue;
+                }
+                
+                // 1. 首先按name查找
+                String refName = resource.name();
+                if (refName.isEmpty()) {
+                    // 如果没有指定name，使用字段名
+                    refName = field.getName();
+                }
+                
+                try {
+                    Object value = null;
+                    // 先尝试按名称查找
+                    if (containsBean(refName)) {
+                        value = getBean(refName);
+                    }
+                    
+                    // 2. 如果按名称没找到，降级为按类型查找
+                    if (value == null) {
+                        value = getBean(fieldType);
+                    }
+                    
+                    field.set(bean, value);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to inject resource field: " + field.getName(), e);
+                }
+            }
+        }
+        
+        // 3. 处理方法注入（包括setter方法和普通方法）
         for (Method method : clazz.getDeclaredMethods()) {
             Autowired autowired = method.getAnnotation(Autowired.class);
             if (autowired != null) {
@@ -197,6 +237,50 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                     method.invoke(bean, args);
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to inject method: " + method, e);
+                }
+            }
+            
+            // 处理 @Resource 注解
+            Resource resource = method.getAnnotation(Resource.class);
+            if (resource != null && method.getParameterCount() == 1) {
+                method.setAccessible(true);
+                Class<?> paramType = method.getParameterTypes()[0];
+                
+                // 跳过集合类型
+                if (List.class.isAssignableFrom(paramType) || 
+                    Map.class.isAssignableFrom(paramType)) {
+                    continue;
+                }
+                
+                // 1. 首先按name查找
+                String refName = resource.name();
+                if (refName.isEmpty()) {
+                    // 如果没有指定name，使用方法名去掉"set"后的部分
+                    if (method.getName().startsWith("set")) {
+                        refName = method.getName().substring(3);
+                        refName = Character.toLowerCase(refName.charAt(0)) + refName.substring(1);
+                    } else {
+                        // 如果不是setter方法，使用参数类型的首字母小写作为bean名称
+                        refName = Character.toLowerCase(paramType.getSimpleName().charAt(0)) + 
+                                 paramType.getSimpleName().substring(1);
+                    }
+                }
+                
+                try {
+                    Object value = null;
+                    // 先尝试按名称查找
+                    if (containsBean(refName)) {
+                        value = getBean(refName);
+                    }
+                    
+                    // 2. 如果按名称没找到，降级为按类型查找
+                    if (value == null) {
+                        value = getBean(paramType);
+                    }
+                    
+                    method.invoke(bean, value);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to inject resource method: " + method.getName(), e);
                 }
             }
         }

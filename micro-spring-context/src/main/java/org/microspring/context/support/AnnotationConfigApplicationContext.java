@@ -21,6 +21,7 @@ import org.microspring.context.annotation.Bean;
 import org.microspring.context.annotation.Configuration;
 import org.microspring.beans.factory.annotation.Value;
 import org.microspring.context.annotation.Primary;
+import javax.annotation.Resource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -422,6 +423,7 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         
         // 处理字段注入的依赖关系
         for (Field field : clazz.getDeclaredFields()) {
+            // 处理 @Autowired 注解
             if (field.isAnnotationPresent(Autowired.class)) {
                 String propertyName = field.getName();
                 Qualifier qualifier = field.getAnnotation(Qualifier.class);
@@ -447,11 +449,71 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 PropertyValue pv = new PropertyValue(propertyName, refName, fieldType, true);
                 bd.addPropertyValue(pv);
             }
+            
+            // 处理 @Resource 注解
+            Resource resource = field.getAnnotation(Resource.class);
+            if (resource != null) {
+                String propertyName = field.getName();
+                Class<?> fieldType = field.getType();
+
+                // 跳过集合类型的字段，让 DefaultBeanFactory 处理
+                if (List.class.isAssignableFrom(fieldType) || 
+                    Map.class.isAssignableFrom(fieldType)) {
+                    continue;
+                }
+                
+                // 获取引用的bean名称
+                String refName = resource.name();
+                if (refName.isEmpty()) {
+                    // 如果没有指定name，使用字段名
+                    refName = propertyName;
+                }
+                
+                PropertyValue pv = new PropertyValue(propertyName, refName, fieldType, true);
+                bd.addPropertyValue(pv);
+            }
         }
         
         // 处理setter方法注入的依赖关系
         for (Method method : clazz.getDeclaredMethods()) {
-            if (method.isAnnotationPresent(Autowired.class) && 
+            // 处理 @Autowired 注解
+            if (method.isAnnotationPresent(Autowired.class)) {
+                if (method.getName().startsWith("set") && 
+                    method.getParameterCount() == 1) {
+                    
+                    String propertyName = method.getName().substring(3);
+                    propertyName = Character.toLowerCase(propertyName.charAt(0)) + 
+                                 propertyName.substring(1);
+                    
+                    Class<?> paramType = method.getParameterTypes()[0];
+                    
+                    // 跳过集合类型的参数，让 DefaultBeanFactory 处理
+                    if (List.class.isAssignableFrom(paramType) || 
+                        Map.class.isAssignableFrom(paramType)) {
+                        continue;
+                    }
+                    
+                    Qualifier qualifier = method.getAnnotation(Qualifier.class);
+                    
+                    // 如果有@Qualifier注解，使用指定的名称
+                    // 否则使用类型对应的默认bean名称（类名首字母小写）
+                    String refName;
+                    if (qualifier != null) {
+                        refName = qualifier.value();
+                    } else {
+                        String targetClassName = paramType.getSimpleName();
+                        refName = Character.toLowerCase(targetClassName.charAt(0)) + 
+                                 targetClassName.substring(1);
+                    }
+                    
+                    PropertyValue pv = new PropertyValue(propertyName, refName, paramType, true);
+                    bd.addPropertyValue(pv);
+                }
+            }
+            
+            // 处理 @Resource 注解
+            Resource resource = method.getAnnotation(Resource.class);
+            if (resource != null && 
                 method.getName().startsWith("set") && 
                 method.getParameterCount() == 1) {
                 
@@ -467,17 +529,11 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                     continue;
                 }
                 
-                Qualifier qualifier = method.getAnnotation(Qualifier.class);
-                
-                // 如果有@Qualifier注解，使用指定的名称
-                // 否则使用类型对应的默认bean名称（类名首字母小写）
-                String refName;
-                if (qualifier != null) {
-                    refName = qualifier.value();
-                } else {
-                    String targetClassName = paramType.getSimpleName();
-                    refName = Character.toLowerCase(targetClassName.charAt(0)) + 
-                             targetClassName.substring(1);
+                // 获取引用的bean名称
+                String refName = resource.name();
+                if (refName.isEmpty()) {
+                    // 如果没有指定name，使用属性名
+                    refName = propertyName;
                 }
                 
                 PropertyValue pv = new PropertyValue(propertyName, refName, paramType, true);
