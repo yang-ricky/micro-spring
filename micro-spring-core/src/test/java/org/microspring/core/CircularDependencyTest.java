@@ -115,9 +115,7 @@ public class CircularDependencyTest {
                         bean.getClass().getClassLoader(),
                         new Class<?>[] { IClassA.class },
                         (proxy, method, args) -> {
-                            System.out.println("Before method: " + method.getName());
                             Object result = method.invoke(bean, args);
-                            System.out.println("After method: " + method.getName());
                             return result;
                         }
                     );
@@ -275,9 +273,7 @@ public class CircularDependencyTest {
                         bean.getClass().getClassLoader(),
                         new Class<?>[] { IClassA.class },
                         (proxy, method, args) -> {
-                            System.out.println("AOP Before: " + method.getName());
                             Object result = method.invoke(bean, args);
-                            System.out.println("AOP After: " + method.getName());
                             return result;
                         }
                     );

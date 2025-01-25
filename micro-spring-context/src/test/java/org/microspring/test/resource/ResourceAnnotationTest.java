@@ -21,7 +21,6 @@ public class ResourceAnnotationTest {
         assertNotNull("ResourceTestBeans should not be null", testBean);
         
         TestService directTestService = context.getBean(TestService.class);
-        System.out.println("TestService found: " + (directTestService != null));
         
         // 测试按名称注入
         TestService namedService = testBean.getNamedService();

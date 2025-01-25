@@ -26,9 +26,6 @@ public class LazyInitTest {
         beanDefinition.setLazyInit(true);
         beanFactory.registerBeanDefinition("lazyBean", beanDefinition);
         
-        // 此时不应该创建bean
-        System.out.println("Before getBean call");
-        
         // 第一次获取时才创建
         Object lazyBean = beanFactory.getBean("lazyBean");
         assertNotNull(lazyBean);
@@ -44,11 +41,7 @@ public class LazyInitTest {
         DefaultBeanFactory beanFactory = new DefaultBeanFactory();
         XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(beanFactory);
         reader.loadBeanDefinitions("lazyContext.xml");
-        
-        System.out.println("Context initialized");
-        // 此时应该只看到EagerBean的创建日志
-        
-        System.out.println("Before getting lazyBean");
+
         Object lazyBean = beanFactory.getBean("lazyBean");
         // 这时才应该看到LazyBean的创建日志
         

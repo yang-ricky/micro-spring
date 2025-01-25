@@ -24,6 +24,7 @@ import org.microspring.context.annotation.Primary;
 import javax.annotation.Resource;
 import org.microspring.context.annotation.Import;
 import org.microspring.context.annotation.ImportBeanDefinitionRegistrar;
+import org.microspring.context.annotation.ImportSelector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -173,10 +174,28 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         // 处理@Import注解
         Import importAnn = configClass.getAnnotation(Import.class);
         if (importAnn != null) {
-            System.out.println("Processing @Import annotation on class: " + configClass.getName());
             for (Class<?> importedClass : importAnn.value()) {
-                System.out.println("Processing imported class: " + importedClass.getName());
-                if (ImportBeanDefinitionRegistrar.class.isAssignableFrom(importedClass)) {
+                if (ImportSelector.class.isAssignableFrom(importedClass)) {
+                    // 如果是ImportSelector的实现类，创建实例并调用selectImports方法
+                    try {
+                        ImportSelector selector = (ImportSelector) importedClass.getDeclaredConstructor().newInstance();
+                        String[] importClassNames = selector.selectImports(configClass);
+                        for (String className : importClassNames) {
+                            try {
+                                Class<?> selectedClass = Class.forName(className);
+                                if (selectedClass.isAnnotationPresent(Configuration.class)) {
+                                    processConfigurationClass(selectedClass);
+                                } else {
+                                    registerBean(selectedClass);
+                                }
+                            } catch (ClassNotFoundException e) {
+                                throw new RuntimeException("Could not load class: " + className, e);
+                            }
+                        }
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to process ImportSelector: " + importedClass, e);
+                    }
+                } else if (ImportBeanDefinitionRegistrar.class.isAssignableFrom(importedClass)) {
                     // 如果是ImportBeanDefinitionRegistrar的实现类，创建实例并调用registerBeanDefinitions方法
                     try {
                         ImportBeanDefinitionRegistrar registrar = (ImportBeanDefinitionRegistrar) importedClass.getDeclaredConstructor().newInstance();
@@ -186,11 +205,9 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                     }
                 } else if (importedClass.isAnnotationPresent(Configuration.class)) {
                     // 如果是配置类，递归处理
-                    System.out.println("Found @Configuration class, processing recursively: " + importedClass.getName());
                     processConfigurationClass(importedClass);
                 } else {
                     // 如果是普通类，注册为bean
-                    System.out.println("Registering regular class as bean: " + importedClass.getName());
                     registerBean(importedClass);
                 }
             }
@@ -201,7 +218,6 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             Bean beanAnn = method.getAnnotation(Bean.class);
             if (beanAnn != null) {
                 String beanName = determineBeanName(beanAnn, method);
-                System.out.println("Processing @Bean method: " + method.getName() + " with bean name: " + beanName);
                 registerBeanMethod(beanName, method, configClass);
             }
         }
