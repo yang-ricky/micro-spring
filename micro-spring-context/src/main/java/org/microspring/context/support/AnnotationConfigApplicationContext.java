@@ -22,6 +22,8 @@ import org.microspring.context.annotation.Configuration;
 import org.microspring.beans.factory.annotation.Value;
 import org.microspring.context.annotation.Primary;
 import javax.annotation.Resource;
+import org.microspring.context.annotation.Import;
+import org.microspring.context.annotation.ImportBeanDefinitionRegistrar;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +51,25 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         refresh();
     }
 
+    /**
+     * 注册一个配置类
+     * @param configClass 要注册的配置类
+     */
+    public void register(Class<?> configClass) {
+        if (configClass.isAnnotationPresent(Configuration.class)) {
+            processConfigurationClass(configClass);
+            // 初始化非延迟加载的单例bean
+            for (String beanName : beanFactory.getBeanDefinitionNames()) {
+                BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+                if (bd.isSingleton() && !bd.isLazyInit()) {
+                    getBean(beanName);
+                }
+            }
+        } else {
+            registerBean(configClass);
+        }
+    }
+
     public void setBasePackage(String basePackage) {
         this.basePackage = basePackage;
     }
@@ -63,16 +84,16 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         if (basePackage != null) {
             // 1. 扫描组件
             scanPackages(basePackage);
+        }
             
-            // 2. 注册 BeanPostProcessor 和监听器
-            super.refresh();
-            
-            // 3. 只初始化非延迟加载的单例bean
-            for (String beanName : beanFactory.getBeanDefinitionNames()) {
-                BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
-                if (bd.isSingleton() && !bd.isLazyInit()) {
-                    getBean(beanName);
-                }
+        // 2. 注册 BeanPostProcessor 和监听器
+        super.refresh();
+        
+        // 3. 只初始化非延迟加载的单例bean
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            if (bd.isSingleton() && !bd.isLazyInit()) {
+                getBean(beanName);
             }
         }
         
@@ -149,11 +170,38 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         // 首先注册配置类本身
         registerBean(configClass);
         
+        // 处理@Import注解
+        Import importAnn = configClass.getAnnotation(Import.class);
+        if (importAnn != null) {
+            System.out.println("Processing @Import annotation on class: " + configClass.getName());
+            for (Class<?> importedClass : importAnn.value()) {
+                System.out.println("Processing imported class: " + importedClass.getName());
+                if (ImportBeanDefinitionRegistrar.class.isAssignableFrom(importedClass)) {
+                    // 如果是ImportBeanDefinitionRegistrar的实现类，创建实例并调用registerBeanDefinitions方法
+                    try {
+                        ImportBeanDefinitionRegistrar registrar = (ImportBeanDefinitionRegistrar) importedClass.getDeclaredConstructor().newInstance();
+                        registrar.registerBeanDefinitions(configClass, beanFactory);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to process ImportBeanDefinitionRegistrar: " + importedClass, e);
+                    }
+                } else if (importedClass.isAnnotationPresent(Configuration.class)) {
+                    // 如果是配置类，递归处理
+                    System.out.println("Found @Configuration class, processing recursively: " + importedClass.getName());
+                    processConfigurationClass(importedClass);
+                } else {
+                    // 如果是普通类，注册为bean
+                    System.out.println("Registering regular class as bean: " + importedClass.getName());
+                    registerBean(importedClass);
+                }
+            }
+        }
+        
         // 处理所有带有@Bean注解的方法
         for (Method method : configClass.getDeclaredMethods()) {
             Bean beanAnn = method.getAnnotation(Bean.class);
             if (beanAnn != null) {
                 String beanName = determineBeanName(beanAnn, method);
+                System.out.println("Processing @Bean method: " + method.getName() + " with bean name: " + beanName);
                 registerBeanMethod(beanName, method, configClass);
             }
         }
@@ -177,6 +225,8 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             private boolean primary = false;
             private final List<PropertyValue> propertyValues = new ArrayList<>();
             private final List<ConstructorArg> constructorArgs = new ArrayList<>();
+            private Method factoryMethod = method;  // 设置工厂方法
+            private Class<?> factoryBeanClass = configClass;  // 设置工厂bean类
             
             @Override
             public Class<?> getBeanClass() {
@@ -195,9 +245,18 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             }
             
             @Override
+            public boolean isLazyInit() {
+                return lazyInit;
+            }
+            
+            @Override
+            public void setLazyInit(boolean lazyInit) {
+                this.lazyInit = lazyInit;
+            }
+            
+            @Override
             public String getInitMethodName() {
-                Bean bean = method.getAnnotation(Bean.class);
-                return bean != null && !bean.initMethod().isEmpty() ? bean.initMethod() : null;
+                return initMethodName;
             }
             
             @Override
@@ -207,8 +266,7 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             
             @Override
             public String getDestroyMethodName() {
-                Bean bean = method.getAnnotation(Bean.class);
-                return bean != null && !bean.destroyMethod().equals("(inferred)") ? bean.destroyMethod() : null;
+                return destroyMethodName;
             }
             
             @Override
@@ -217,34 +275,23 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             }
             
             @Override
-            public List<ConstructorArg> getConstructorArgs() {
-                return this.constructorArgs;
+            public List<PropertyValue> getPropertyValues() {
+                return propertyValues;
             }
             
             @Override
-            public List<PropertyValue> getPropertyValues() {
-                return this.propertyValues;
+            public void addPropertyValue(PropertyValue pv) {
+                propertyValues.add(pv);
+            }
+            
+            @Override
+            public List<ConstructorArg> getConstructorArgs() {
+                return constructorArgs;
             }
             
             @Override
             public void addConstructorArg(ConstructorArg arg) {
-                this.constructorArgs.add(arg);
-            }
-            
-            @Override
-            public void addPropertyValue(PropertyValue propertyValue) {
-                this.propertyValues.add(propertyValue);
-            }
-            
-            @Override
-            public boolean isLazyInit() {
-                Lazy lazy = method.getAnnotation(Lazy.class);
-                return lazy != null;
-            }
-            
-            @Override
-            public void setLazyInit(boolean lazyInit) {
-                this.lazyInit = lazyInit;
+                constructorArgs.add(arg);
             }
             
             @Override
@@ -256,12 +303,35 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             public void setPrimary(boolean primary) {
                 this.primary = primary;
             }
+
+            @Override
+            public Method getFactoryMethod() {
+                return factoryMethod;
+            }
+
+            @Override
+            public Class<?> getFactoryBeanClass() {
+                return factoryBeanClass;
+            }
         };
         
         // 检查并设置@Primary注解
         Primary primaryAnn = method.getAnnotation(Primary.class);
         if (primaryAnn != null) {
             bd.setPrimary(true);
+        }
+        
+        // 处理@Bean注解的initMethod和destroyMethod属性
+        Bean beanAnn = method.getAnnotation(Bean.class);
+        if (beanAnn != null) {
+            String initMethod = beanAnn.initMethod();
+            if (!initMethod.isEmpty()) {
+                bd.setInitMethodName(initMethod);
+            }
+            String destroyMethod = beanAnn.destroyMethod();
+            if (!destroyMethod.equals("(inferred)")) {
+                bd.setDestroyMethodName(destroyMethod);
+            }
         }
         
         // 处理工厂方法的参数

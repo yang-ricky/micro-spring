@@ -617,8 +617,9 @@ public class DefaultBeanFactory implements BeanFactory {
             try {
                 Class<?> factoryBeanClass = bd.getFactoryBeanClass();
                 
+                // 获取或创建工厂bean实例
                 Object factoryBean = getBean(factoryBeanClass);
-                
+
                 // 处理工厂方法的参数
                 if (factoryMethod.getParameterCount() > 0) {
                     List<ConstructorArg> constructorArgs = bd.getConstructorArgs();
@@ -628,12 +629,13 @@ public class DefaultBeanFactory implements BeanFactory {
                         ConstructorArg arg = constructorArgs.get(i);
                         if (arg.isRef()) {
                             // 如果是引用类型，从容器中获取bean
-                            args[i] = getBean(arg.getRef());
+                            args[i] = getBean((String)arg.getRef());
                         } else {
-                            // 如果是值类型，直接使用值
+                            // 如果是值类型，进行类型转换
                             Object value = arg.getValue();
                             if (value != null) {
-                                args[i] = value;
+                                Class<?> paramType = factoryMethod.getParameterTypes()[i];
+                                args[i] = convertValue((String)value, paramType);
                             } else {
                                 Class<?> paramType = factoryMethod.getParameterTypes()[i];
                                 if (paramType == String.class) {
@@ -655,7 +657,6 @@ public class DefaultBeanFactory implements BeanFactory {
                     return factoryMethod.invoke(factoryBean);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 throw new BeanCreationException(beanClass.getName(), 
                     "Failed to invoke factory method [" + factoryMethod.getName() + "]", e);
             }
