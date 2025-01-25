@@ -27,6 +27,7 @@ import org.microspring.core.aware.BeanFactoryAware;
 import org.microspring.core.exception.BeanCreationException;
 import org.microspring.core.exception.NoSuchBeanDefinitionException;
 import org.microspring.beans.factory.annotation.Value;
+import org.microspring.beans.factory.FactoryBean;
 
 public class DefaultBeanFactory implements BeanFactory {
     
@@ -273,7 +274,7 @@ public class DefaultBeanFactory implements BeanFactory {
         for (PropertyValue pv : bd.getPropertyValues()) {
             Field field = bean.getClass().getDeclaredField(pv.getName());
             field.setAccessible(true);
-            
+                
             Object value;
             if (pv.isRef()) {
                 Object ref = pv.getRef();
@@ -284,6 +285,15 @@ public class DefaultBeanFactory implements BeanFactory {
                         value = getSingleton(refName, true);
                         if (value == null) {
                             value = doGetBean(refName, null);
+                        }
+                        
+                        // 处理 FactoryBean (为了MyBatis)
+                        if (value instanceof FactoryBean) {
+                            try {
+                                value = ((FactoryBean<?>) value).getObject();
+                            } catch (Exception e) {
+                                throw new BeanCreationException(refName, "Failed to get object from FactoryBean", e);
+                            }
                         }
                     } catch (Exception e) {
                         if (e instanceof CircularDependencyException) {
@@ -334,10 +344,10 @@ public class DefaultBeanFactory implements BeanFactory {
             } else {
                 value = pv.getValue();
             }
-            
+                        
             field.set(bean, value);
-        }
-
+                }
+                
         // 2. 处理 @Autowired 注解的字段注入
         for (Field field : bd.getBeanClass().getDeclaredFields()) {
             Autowired autowired = field.getAnnotation(Autowired.class);
@@ -386,7 +396,7 @@ public class DefaultBeanFactory implements BeanFactory {
                         field.set(bean, new HashMap<>());
                     }
                     continue;
-                }
+            }
                 
                 // 处理普通类型
                 String refName;
@@ -397,24 +407,24 @@ public class DefaultBeanFactory implements BeanFactory {
                     // 使用字段类型作为依赖的bean名称
                     refName = Character.toLowerCase(fieldType.getSimpleName().charAt(0)) 
                              + fieldType.getSimpleName().substring(1);
-                }
-                
-                try {
+        }
+
+                            try {
                     // 先尝试从缓存中获取
                     Object value = getSingleton(refName, true);
                     if (value == null) {
                         value = doGetBean(refName, fieldType);
                     }
                     field.set(bean, value);
-                } catch (Exception e) {
+                            } catch (Exception e) {
                     if (e instanceof CircularDependencyException) {
                         throw e;
                     }
-                    throw new CircularDependencyException(
+                        throw new CircularDependencyException(
                         "Error injecting autowired field '" + field.getName() + "'", e);
                 }
-            }
-        }
+                            }
+                        }
 
         // 2.1 处理 @Resource 注解的字段注入
         for (Field field : bd.getBeanClass().getDeclaredFields()) {
@@ -456,7 +466,7 @@ public class DefaultBeanFactory implements BeanFactory {
                                 }
                             }
                             field.set(bean, matchingBeans);
-                        }
+                            }
                     } else {
                         // 如果没有泛型参数，设置空Map
                         field.set(bean, new HashMap<>());
@@ -488,11 +498,11 @@ public class DefaultBeanFactory implements BeanFactory {
                     }
                     
                     field.set(bean, value);
-                } catch (Exception e) {
-                    if (e instanceof CircularDependencyException) {
-                        throw e;
-                    }
-                    throw new CircularDependencyException(
+                    } catch (Exception e) {
+                        if (e instanceof CircularDependencyException) {
+                            throw e;
+                        }
+                        throw new CircularDependencyException(
                         "Error injecting resource field '" + field.getName() + "'", e);
                 }
             }
@@ -515,8 +525,8 @@ public class DefaultBeanFactory implements BeanFactory {
                         if (elementType instanceof Class) {
                             List<Object> matchingBeans = getBeansByType((Class<?>) elementType);
                             method.invoke(bean, matchingBeans);
-                        }
-                    } else {
+                    }
+                } else {
                         // 如果没有泛型参数，注入空列表
                         method.invoke(bean, new ArrayList<>());
                     }
@@ -538,13 +548,13 @@ public class DefaultBeanFactory implements BeanFactory {
                                 }
                             }
                             method.invoke(bean, matchingBeans);
-                        }
-                    } else {
+                }
+            } else {
                         // 如果没有泛型参数，注入空Map
                         method.invoke(bean, new HashMap<>());
                     }
                     continue;
-                }
+            }
                 
                 // 处理普通类型
                 // 1. 首先按name查找
@@ -915,23 +925,46 @@ public class DefaultBeanFactory implements BeanFactory {
         return beanDefinitionMap.keySet();
     }
 
-    @Override   
+    @Override
     public <T> T getBean(Class<T> requiredType) {
         List<String> matchingBeans = new ArrayList<>();
         List<String> primaryBeans = new ArrayList<>();
         String exactMatch = null;
         
+        // 先检查普通 bean
         for (String beanName : beanDefinitionMap.keySet()) {
             BeanDefinition bd = beanDefinitionMap.get(beanName);
             if (requiredType.isAssignableFrom(bd.getBeanClass())) {
                 matchingBeans.add(beanName);
-                // 检查是否是Primary
                 if (bd.isPrimary()) {
                     primaryBeans.add(beanName);
                 }
-                // 检查是否精确匹配
                 if (bd.getBeanClass() == requiredType) {
                     exactMatch = beanName;
+                }
+            }
+        }
+        
+        // 如果没找到普通 bean，检查 FactoryBean(是为集成mybatis)
+        if (matchingBeans.isEmpty()) {
+            for (String beanName : beanDefinitionMap.keySet()) {
+                BeanDefinition bd = beanDefinitionMap.get(beanName);
+                if (FactoryBean.class.isAssignableFrom(bd.getBeanClass())) {
+                    try {
+                        FactoryBean<?> factoryBean = (FactoryBean<?>) getBean(beanName);
+                        if (requiredType.isAssignableFrom(factoryBean.getObjectType())) {
+                            matchingBeans.add(beanName);
+                            if (bd.isPrimary()) {
+                                primaryBeans.add(beanName);
+                            }
+                            if (factoryBean.getObjectType() == requiredType) {
+                                exactMatch = beanName;
+                            }
+                        }
+                    } catch (Exception e) {
+                        // 忽略异常，继续检查其他 bean
+                        continue;
+                    }
                 }
             }
         }
@@ -948,17 +981,43 @@ public class DefaultBeanFactory implements BeanFactory {
         
         // 优先返回@Primary标注的bean
         if (primaryBeans.size() == 1) {
-            return (T) getBean(primaryBeans.get(0));
+            String beanName = primaryBeans.get(0);
+            Object bean = getBean(beanName);
+            if (bean instanceof FactoryBean) {
+                try {
+                    return (T) ((FactoryBean<?>) bean).getObject();
+                } catch (Exception e) {
+                    throw new BeanCreationException(beanName, "Failed to get object from FactoryBean", e);
+                }
+            }
+            return (T) bean;
         }
         
         // 其次返回精确匹配的bean
         if (exactMatch != null) {
-            return (T) getBean(exactMatch);
+            Object bean = getBean(exactMatch);
+            if (bean instanceof FactoryBean) {
+                try {
+                    return (T) ((FactoryBean<?>) bean).getObject();
+                } catch (Exception e) {
+                    throw new BeanCreationException(exactMatch, "Failed to get object from FactoryBean", e);
+                }
+            }
+            return (T) bean;
         }
         
         // 如果只有一个匹配的bean，返回它
         if (matchingBeans.size() == 1) {
-            return (T) getBean(matchingBeans.get(0));
+            String beanName = matchingBeans.get(0);
+            Object bean = getBean(beanName);
+            if (bean instanceof FactoryBean) {
+                try {
+                    return (T) ((FactoryBean<?>) bean).getObject();
+                } catch (Exception e) {
+                    throw new BeanCreationException(beanName, "Failed to get object from FactoryBean", e);
+                }
+            }
+            return (T) bean;
         }
         
         // 如果有多个匹配但没有Primary标注，抛出异常

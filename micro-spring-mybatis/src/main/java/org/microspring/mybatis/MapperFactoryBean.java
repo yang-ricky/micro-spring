@@ -8,7 +8,7 @@ public class MapperFactoryBean<T> implements FactoryBean<T>, InitializingBean {
     
     private Class<T> mapperInterface;
     private SqlSessionFactory sqlSessionFactory;
-    private boolean addToConfig = true;
+    private T mapperProxy;  // 缓存代理实例
     
     public MapperFactoryBean() {
     }
@@ -19,11 +19,14 @@ public class MapperFactoryBean<T> implements FactoryBean<T>, InitializingBean {
     
     @Override
     public T getObject() throws Exception {
-        return sqlSessionFactory.getConfiguration().getMapper(mapperInterface, sqlSessionFactory.openSession());
+        if (this.mapperProxy == null) {
+            this.mapperProxy = sqlSessionFactory.openSession().getMapper(this.mapperInterface);
+        }
+        return this.mapperProxy;
     }
     
     @Override
-    public Class<T> getObjectType() {
+    public Class<?> getObjectType() {
         return this.mapperInterface;
     }
     
@@ -37,13 +40,8 @@ public class MapperFactoryBean<T> implements FactoryBean<T>, InitializingBean {
         if (this.mapperInterface == null) {
             throw new IllegalArgumentException("Property 'mapperInterface' is required");
         }
-        
         if (this.sqlSessionFactory == null) {
             throw new IllegalArgumentException("Property 'sqlSessionFactory' is required");
-        }
-        
-        if (this.addToConfig && !this.sqlSessionFactory.getConfiguration().hasMapper(this.mapperInterface)) {
-            this.sqlSessionFactory.getConfiguration().addMapper(this.mapperInterface);
         }
     }
     
@@ -53,9 +51,5 @@ public class MapperFactoryBean<T> implements FactoryBean<T>, InitializingBean {
     
     public void setSqlSessionFactory(SqlSessionFactory sqlSessionFactory) {
         this.sqlSessionFactory = sqlSessionFactory;
-    }
-    
-    public void setAddToConfig(boolean addToConfig) {
-        this.addToConfig = addToConfig;
     }
 }

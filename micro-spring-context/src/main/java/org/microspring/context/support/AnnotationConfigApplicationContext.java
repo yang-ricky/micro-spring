@@ -2,6 +2,7 @@ package org.microspring.context.support;
 
 import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.BeanDefinition;
+import org.microspring.core.BeanFactoryPostProcessor;
 import org.microspring.beans.factory.annotation.Scope;
 import org.microspring.beans.factory.annotation.Lazy;
 import org.microspring.core.beans.ConstructorArg;
@@ -59,6 +60,10 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     public void register(Class<?> configClass) {
         if (configClass.isAnnotationPresent(Configuration.class)) {
             processConfigurationClass(configClass);
+            
+            // 调用 BeanFactoryPostProcessor
+            invokeBeanFactoryPostProcessors();
+            
             // 初始化非延迟加载的单例bean
             for (String beanName : beanFactory.getBeanDefinitionNames()) {
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
@@ -87,10 +92,13 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             scanPackages(basePackage);
         }
             
-        // 2. 注册 BeanPostProcessor 和监听器
+        // 2. 调用 BeanFactoryPostProcessor
+        invokeBeanFactoryPostProcessors();
+            
+        // 3. 注册 BeanPostProcessor 和监听器
         super.refresh();
         
-        // 3. 只初始化非延迟加载的单例bean
+        // 4. 只初始化非延迟加载的单例bean
         for (String beanName : beanFactory.getBeanDefinitionNames()) {
             BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
             if (bd.isSingleton() && !bd.isLazyInit()) {
@@ -98,8 +106,21 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
             }
         }
         
-        // 4. 发布刷新完成事件
+        // 5. 发布刷新完成事件
         publishEvent(new ContextRefreshedEvent(this));
+    }
+
+    private void invokeBeanFactoryPostProcessors() {
+        System.out.println("Invoking BeanFactoryPostProcessors...");
+        // 获取所有 BeanFactoryPostProcessor 类型的 bean 定义
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            if (BeanFactoryPostProcessor.class.isAssignableFrom(bd.getBeanClass())) {
+                System.out.println("Found BeanFactoryPostProcessor: " + beanName);
+                BeanFactoryPostProcessor postProcessor = (BeanFactoryPostProcessor) getBean(beanName);
+                postProcessor.postProcessBeanFactory(beanFactory);
+            }
+        }
     }
 
     protected void scanPackages(String... basePackages) {

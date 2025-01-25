@@ -4,30 +4,36 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 import org.microspring.beans.factory.FactoryBean;
 import org.microspring.beans.factory.InitializingBean;
-import org.microspring.jdbc.DataSource;
-import org.microspring.mybatis.transaction.MicroSpringTransactionFactory;
 import org.microspring.stereotype.Component;
 
-import java.util.Properties;
+import javax.sql.DataSource;
+import org.apache.ibatis.mapping.Environment;
+import org.apache.ibatis.transaction.TransactionFactory;
+import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
+import org.apache.ibatis.session.Configuration;
 
+/**
+ * SqlSessionFactory的工厂Bean
+ * 负责创建MyBatis的SqlSessionFactory实例
+ */
 @Component
 public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, InitializingBean {
     
     private DataSource dataSource;
-    private Properties configurationProperties;
     private SqlSessionFactory sqlSessionFactory;
+    private String typeAliasesPackage;
     
     @Override
-    public SqlSessionFactory getObject() throws Exception {
-        if (this.sqlSessionFactory == null) {
+    public SqlSessionFactory getObject() {
+        if (sqlSessionFactory == null) {
             afterPropertiesSet();
         }
-        return this.sqlSessionFactory;
+        return sqlSessionFactory;
     }
     
     @Override
     public Class<?> getObjectType() {
-        return this.sqlSessionFactory == null ? SqlSessionFactory.class : this.sqlSessionFactory.getClass();
+        return SqlSessionFactory.class;
     }
     
     @Override
@@ -36,38 +42,45 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
     }
     
     @Override
-    public void afterPropertiesSet() throws Exception {
-        org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
-        
-        // 设置数据源
-        if (this.dataSource != null) {
-            configuration.setEnvironment(new org.apache.ibatis.mapping.Environment(
-                "default",
-                new MicroSpringTransactionFactory(),
-                new MicroSpringDataSource(this.dataSource)
-            ));
-        }
-        
-        // 应用配置属性
-        if (this.configurationProperties != null) {
-            for (Object key : this.configurationProperties.keySet()) {
-                String strKey = key.toString();
-                Object value = this.configurationProperties.get(key);
-                if (value != null) {
-                    configuration.getVariables().setProperty(strKey, value.toString());
-                }
+    public void afterPropertiesSet() {
+        try {
+            // 创建MyBatis配置
+            Configuration configuration = new Configuration();
+            
+            // 设置环境
+            TransactionFactory transactionFactory = new JdbcTransactionFactory();
+            Environment environment = new Environment("development", transactionFactory, dataSource);
+            configuration.setEnvironment(environment);
+            
+            // 设置类型别名包
+            if (typeAliasesPackage != null) {
+                configuration.getTypeAliasRegistry().registerAliases(typeAliasesPackage);
             }
+            
+            // 启用自动映射
+            configuration.setMapUnderscoreToCamelCase(true);
+            configuration.setUseGeneratedKeys(true);
+            
+            // 注册 Mapper 接口
+            String basePackage = "org.microspring.mybatis.test.mapper";
+            System.out.println("Adding mappers from package: " + basePackage);
+            configuration.addMappers(basePackage);
+            
+            // 创建SqlSessionFactory
+            SqlSessionFactoryBuilder builder = new SqlSessionFactoryBuilder();
+            this.sqlSessionFactory = builder.build(configuration);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error building SqlSessionFactory", e);
         }
-        
-        // 创建SqlSessionFactory
-        this.sqlSessionFactory = new SqlSessionFactoryBuilder().build(configuration);
     }
     
     public void setDataSource(DataSource dataSource) {
         this.dataSource = dataSource;
     }
     
-    public void setConfigurationProperties(Properties configurationProperties) {
-        this.configurationProperties = configurationProperties;
+    public void setTypeAliasesPackage(String typeAliasesPackage) {
+        this.typeAliasesPackage = typeAliasesPackage;
     }
 }

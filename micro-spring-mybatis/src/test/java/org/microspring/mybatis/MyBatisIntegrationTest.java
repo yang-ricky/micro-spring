@@ -1,113 +1,47 @@
 package org.microspring.mybatis;
 
 import org.junit.Test;
-import org.microspring.context.support.ClassPathXmlApplicationContext;
-import org.microspring.mybatis.annotation.Mapper;
+import org.microspring.context.support.AnnotationConfigApplicationContext;
+import org.microspring.mybatis.test.model.User;
+import org.microspring.mybatis.test.model.UserService;
 
 import static org.junit.Assert.*;
 
 public class MyBatisIntegrationTest {
     
-    @Mapper
-    public static interface UserMapper {
-        void createTable();
-        void dropTable();
-        void insert(User user);
-        User findById(Integer id);
-    }
-    
-    public static class User {
-        private Integer id;
-        private String name;
-        
-        public Integer getId() {
-            return id;
-        }
-        
-        public void setId(Integer id) {
-            this.id = id;
-        }
-        
-        public String getName() {
-            return name;
-        }
-        
-        public void setName(String name) {
-            this.name = name;
-        }
-    }
-    
-    public static class UserService {
-        private final UserMapper userMapper;
-        
-        public UserService(UserMapper userMapper) {
-            this.userMapper = userMapper;
-        }
-        
-        public void createTable() {
-            userMapper.createTable();
-        }
-        
-        public void dropTable() {
-            userMapper.dropTable();
-        }
-        
-        public void insert(User user) {
-            userMapper.insert(user);
-        }
-        
-        public User findById(Integer id) {
-            return userMapper.findById(id);
-        }
-    }
-    
-    //@Test
+    @Test
     public void testMyBatisIntegration() {
-        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("mybatis-test.xml");
+        AnnotationConfigApplicationContext context = 
+        new AnnotationConfigApplicationContext("org.microspring.mybatis");
+        
         UserService userService = context.getBean("userService", UserService.class);
         
-        userService.createTable();
+        userService.init();  // 创建表
         
-        User user = new User();
-        user.setId(1);
-        user.setName("test");
-        userService.insert(user);
+        // 创建用户
+        User user = userService.createUser("test", "test123");
+        assertNotNull("User ID should be generated", user.getId());
         
-        User found = userService.findById(1);
-        assertNotNull(found);
-        assertEquals(Integer.valueOf(1), found.getId());
-        assertEquals("test", found.getName());
+        // 测试查询
+        User found = userService.findById(user.getId());
+        assertNotNull("Should find user by ID", found);
+        assertEquals("test", found.getUsername());
+        assertEquals("test123", found.getPassword());
         
-        userService.dropTable();
-    }
-    
-    //@Test
-    public void testTransactionRollback() {
-        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("mybatis-test.xml");
-        UserService userService = context.getBean("userService", UserService.class);
+        // 测试更新
+        found.setUsername("updated");
+        found.setPassword("updated123");
+        userService.updateUser(found);
         
-        userService.createTable();
+        User updated = userService.findById(user.getId());
+        assertEquals("updated", updated.getUsername());
+        assertEquals("updated123", updated.getPassword());
         
-        User user = new User();
-        user.setId(1);
-        user.setName("test");
-        userService.insert(user);
-        
-        try {
-            // 插入重复ID，应该触发回滚
-            User duplicate = new User();
-            duplicate.setId(1);
-            duplicate.setName("duplicate");
-            userService.insert(duplicate);
-            fail("Should throw exception for duplicate key");
-        } catch (Exception e) {
-            // 预期的异常
-        }
-        
-        User found = userService.findById(1);
-        assertNotNull(found);
-        assertEquals("test", found.getName()); // 原始数据应该保持不变
+        // 测试删除
+        userService.deleteUser(user.getId());
+        assertNull(userService.findById(user.getId()));
         
         userService.dropTable();
+        context.close();
     }
 }
