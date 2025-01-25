@@ -1218,4 +1218,24 @@ public class DefaultBeanFactory implements BeanFactory {
         }
         return result;
     }
+
+    /**
+     * 直接注册一个单例对象
+     * @param beanName bean的名称
+     * @param singletonObject 单例对象
+     */
+    public void registerSingleton(String beanName, Object singletonObject) {
+        if (beanName == null || beanName.isEmpty()) {
+            throw new IllegalArgumentException("Bean name must not be null or empty");
+        }
+        if (singletonObject == null) {
+            throw new IllegalArgumentException("Singleton object must not be null");
+        }
+        if (this.singletonObjects.containsKey(beanName)) {
+            throw new IllegalStateException("Could not register singleton object [" + singletonObject + 
+                "] under bean name '" + beanName + "': there is already object [" + 
+                this.singletonObjects.get(beanName) + "] bound");
+        }
+        this.singletonObjects.put(beanName, singletonObject);
+    }
 } 
