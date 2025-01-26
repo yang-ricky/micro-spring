@@ -1,8 +1,11 @@
 package org.microspring.mybatis;
 
+import javax.rmi.ssl.SslRMIClientSocketFactory;
+
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.microspring.beans.factory.FactoryBean;
 import org.microspring.beans.factory.InitializingBean;
+import org.apache.ibatis.session.Configuration;
 
 public class MapperFactoryBean<T> implements FactoryBean<T>, InitializingBean {
     
@@ -18,10 +21,10 @@ public class MapperFactoryBean<T> implements FactoryBean<T>, InitializingBean {
     }
     
     @Override
-    public T getObject() throws Exception {
+    public T getObject() throws Exception {        
         if (this.mapperProxy == null) {
             this.mapperProxy = sqlSessionFactory.openSession().getMapper(this.mapperInterface);
-        }
+        } 
         return this.mapperProxy;
     }
     
@@ -36,12 +39,18 @@ public class MapperFactoryBean<T> implements FactoryBean<T>, InitializingBean {
     }
     
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() throws Exception {        
         if (this.mapperInterface == null) {
             throw new IllegalArgumentException("Property 'mapperInterface' is required");
         }
         if (this.sqlSessionFactory == null) {
             throw new IllegalArgumentException("Property 'sqlSessionFactory' is required");
+        }
+        
+        // 注册当前的Mapper接口
+        Configuration configuration = sqlSessionFactory.getConfiguration();
+        if (!configuration.hasMapper(mapperInterface)) {
+            configuration.addMapper(mapperInterface);
         }
     }
     

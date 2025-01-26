@@ -23,6 +23,7 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
     private SqlSessionFactory sqlSessionFactory;
     private String typeAliasesPackage;
     private Configuration configuration;
+    private Class<?>[] mapperInterfaces;
     
     @Override
     public SqlSessionFactory getObject() {
@@ -62,6 +63,14 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
             configuration.setMapUnderscoreToCamelCase(true);
             configuration.setUseGeneratedKeys(true);
             
+            // 注册Mapper接口
+            if (mapperInterfaces != null) {
+                for (Class<?> mapperInterface : mapperInterfaces) {
+                    System.out.println("Registering mapper interface: " + mapperInterface.getName());
+                    configuration.addMapper(mapperInterface);
+                }
+            }
+            
             // 创建SqlSessionFactory
             SqlSessionFactoryBuilder builder = new SqlSessionFactoryBuilder();
             this.sqlSessionFactory = builder.build(configuration);
@@ -82,5 +91,9 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
     
     public void setTypeAliasesPackage(String typeAliasesPackage) {
         this.typeAliasesPackage = typeAliasesPackage;
+    }
+    
+    public void setMapperInterfaces(Class<?>[] mapperInterfaces) {
+        this.mapperInterfaces = mapperInterfaces;
     }
 }

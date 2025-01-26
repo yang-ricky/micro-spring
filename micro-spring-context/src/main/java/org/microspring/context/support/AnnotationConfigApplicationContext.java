@@ -114,12 +114,10 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     }
 
     private void invokeBeanFactoryPostProcessors() {
-        System.out.println("Invoking BeanFactoryPostProcessors...");
         // 获取所有 BeanFactoryPostProcessor 类型的 bean 定义
         for (String beanName : beanFactory.getBeanDefinitionNames()) {
             BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
             if (BeanFactoryPostProcessor.class.isAssignableFrom(bd.getBeanClass())) {
-                System.out.println("Found BeanFactoryPostProcessor: " + beanName);
                 BeanFactoryPostProcessor postProcessor = (BeanFactoryPostProcessor) getBean(beanName);
                 postProcessor.postProcessBeanFactory(beanFactory);
             }
@@ -216,7 +214,6 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     private void processImportAnnotation(Class<?> clazz, Class<?> sourceClass) {
         Import importAnn = clazz.getAnnotation(Import.class);
         if (importAnn != null) {
-            System.out.println("Found @Import on " + (clazz.isAnnotation() ? "annotation: " : "class: ") + clazz.getName());
             for (Class<?> importedClass : importAnn.value()) {
                 if (ImportSelector.class.isAssignableFrom(importedClass)) {
                     // 如果是ImportSelector的实现类，创建实例并调用selectImports方法
@@ -241,7 +238,6 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 } else if (ImportBeanDefinitionRegistrar.class.isAssignableFrom(importedClass)) {
                     // 如果是ImportBeanDefinitionRegistrar的实现类，创建实例并调用registerBeanDefinitions方法
                     try {
-                        System.out.println("Creating ImportBeanDefinitionRegistrar instance from " + (clazz.isAnnotation() ? "annotation: " : "class: ") + importedClass.getName());
                         ImportBeanDefinitionRegistrar registrar = (ImportBeanDefinitionRegistrar) importedClass.getDeclaredConstructor().newInstance();
                         registrar.registerBeanDefinitions(sourceClass, beanFactory);
                     } catch (Exception e) {

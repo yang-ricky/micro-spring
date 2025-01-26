@@ -8,12 +8,12 @@ public interface FactoryBean<T> {
      * 获取Bean实例
      */
     T getObject() throws Exception;
-
+    
     /**
      * 获取Bean类型
      */
     Class<?> getObjectType();
-
+    
     /**
      * 是否是单例
      */

@@ -1,7 +1,5 @@
 package org.microspring.core.io;
 
-import org.microspring.beans.factory.annotation.Autowired;
-import org.microspring.beans.factory.annotation.Qualifier;
 import org.microspring.core.BeanDefinition;
 import org.microspring.core.DefaultBeanFactory;
 import org.microspring.core.beans.ConstructorArg;
@@ -17,10 +15,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Field;
-import java.lang.reflect.Constructor;
-import java.lang.annotation.Annotation;
-
 
 public class ClassPathBeanDefinitionScanner {
     private final DefaultBeanFactory beanFactory;

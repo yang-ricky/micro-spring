@@ -1,11 +1,11 @@
-package org.microspring.mybatis.test.mapperother;
+package org.microspring.mybatis.test.single;
 
 import org.microspring.mybatis.test.model.Post;
 import org.apache.ibatis.annotations.*;
 import org.microspring.mybatis.annotation.Mapper;
 
 @Mapper
-public interface PostMapper {
+public interface TestPostMapper {
     @Update("CREATE TABLE IF NOT EXISTS posts (" +
             "id BIGINT AUTO_INCREMENT PRIMARY KEY," +
             "title VARCHAR(255) NOT NULL," +

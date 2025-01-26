@@ -3,6 +3,7 @@ package org.microspring.mybatis.test.mapper;
 import org.apache.ibatis.annotations.*;
 import org.microspring.mybatis.test.model.User;
 
+@Mapper
 public interface UserMapper {
     @Select("SELECT * FROM users WHERE id = #{id}")
     User findById(@Param("id") Long id);

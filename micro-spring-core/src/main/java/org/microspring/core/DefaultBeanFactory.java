@@ -71,16 +71,25 @@ public class DefaultBeanFactory implements BeanFactory {
 
     @Override
     public <T> T getBean(String name, Class<T> requiredType) {
-        return doGetBean(name, requiredType);
+            return doGetBean(name, requiredType);
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> T doGetBean(String name, Class<T> requiredType) {
+    protected <T> T doGetBean(String name, Class<T> requiredType){
         try {
             // 1. 先尝试从缓存获取(1级、2级、3级)
             Object bean = getSingleton(name, true);
             if (bean != null) {
                 // 若 bean 已存在，则可进行类型检查
+                if (bean instanceof FactoryBean) {
+                    try {
+                        FactoryBean<?> factoryBean = (FactoryBean<?>) bean;
+                        bean = factoryBean.getObject();
+                    } catch (Exception e) {
+                        throw new BeanCreationException(name, "FactoryBean threw exception on object creation", e);
+                    }
+                }
+                
                 if (requiredType != null && !requiredType.isInstance(bean)) {
                     throw new BeanCreationException(name, 
                         "Bean is not of required type " + requiredType.getName());
@@ -101,7 +110,17 @@ public class DefaultBeanFactory implements BeanFactory {
                 bean = createBean(name, beanDefinition);
             }
 
-            // 4. 类型检查
+            // 4. 处理 FactoryBean
+            if (bean instanceof FactoryBean) {
+                try {
+                    FactoryBean<?> factoryBean = (FactoryBean<?>) bean;
+                    bean = factoryBean.getObject();
+                } catch (Exception e) {
+                    throw new BeanCreationException(name, "FactoryBean threw exception on object creation", e);
+                }
+            }
+
+            // 5. 类型检查
             if (requiredType != null && !requiredType.isInstance(bean)) {
                 throw new BeanCreationException(name, 
                     "Bean is not of required type " + requiredType.getName());
