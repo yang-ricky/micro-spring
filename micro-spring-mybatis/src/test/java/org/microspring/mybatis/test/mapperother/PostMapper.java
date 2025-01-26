@@ -4,7 +4,6 @@ import org.microspring.mybatis.annotation.Mapper;
 import org.microspring.mybatis.test.model.Post;
 import org.apache.ibatis.annotations.*;
 
-@Mapper
 public interface PostMapper {
     @Update("CREATE TABLE IF NOT EXISTS posts (" +
             "id BIGINT AUTO_INCREMENT PRIMARY KEY," +
