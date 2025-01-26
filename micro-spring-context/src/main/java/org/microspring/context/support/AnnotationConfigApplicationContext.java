@@ -195,15 +195,34 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         // 首先注册配置类本身
         registerBean(configClass);
         
-        // 处理@Import注解
-        Import importAnn = configClass.getAnnotation(Import.class);
+        // 处理类上的@Import注解
+        processImportAnnotation(configClass, configClass);
+        
+        // 处理注解上的@Import注解
+        for (java.lang.annotation.Annotation annotation : configClass.getAnnotations()) {
+            processImportAnnotation(annotation.annotationType(), configClass);
+        }
+        
+        // 处理所有带有@Bean注解的方法
+        for (Method method : configClass.getDeclaredMethods()) {
+            Bean beanAnn = method.getAnnotation(Bean.class);
+            if (beanAnn != null) {
+                String beanName = determineBeanName(beanAnn, method);
+                registerBeanMethod(beanName, method, configClass);
+            }
+        }
+    }
+
+    private void processImportAnnotation(Class<?> clazz, Class<?> sourceClass) {
+        Import importAnn = clazz.getAnnotation(Import.class);
         if (importAnn != null) {
+            System.out.println("Found @Import on " + (clazz.isAnnotation() ? "annotation: " : "class: ") + clazz.getName());
             for (Class<?> importedClass : importAnn.value()) {
                 if (ImportSelector.class.isAssignableFrom(importedClass)) {
                     // 如果是ImportSelector的实现类，创建实例并调用selectImports方法
                     try {
                         ImportSelector selector = (ImportSelector) importedClass.getDeclaredConstructor().newInstance();
-                        String[] importClassNames = selector.selectImports(configClass);
+                        String[] importClassNames = selector.selectImports(sourceClass);
                         for (String className : importClassNames) {
                             try {
                                 Class<?> selectedClass = Class.forName(className);
@@ -222,8 +241,9 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                 } else if (ImportBeanDefinitionRegistrar.class.isAssignableFrom(importedClass)) {
                     // 如果是ImportBeanDefinitionRegistrar的实现类，创建实例并调用registerBeanDefinitions方法
                     try {
+                        System.out.println("Creating ImportBeanDefinitionRegistrar instance from " + (clazz.isAnnotation() ? "annotation: " : "class: ") + importedClass.getName());
                         ImportBeanDefinitionRegistrar registrar = (ImportBeanDefinitionRegistrar) importedClass.getDeclaredConstructor().newInstance();
-                        registrar.registerBeanDefinitions(configClass, beanFactory);
+                        registrar.registerBeanDefinitions(sourceClass, beanFactory);
                     } catch (Exception e) {
                         throw new RuntimeException("Failed to process ImportBeanDefinitionRegistrar: " + importedClass, e);
                     }
@@ -234,15 +254,6 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
                     // 如果是普通类，注册为bean
                     registerBean(importedClass);
                 }
-            }
-        }
-        
-        // 处理所有带有@Bean注解的方法
-        for (Method method : configClass.getDeclaredMethods()) {
-            Bean beanAnn = method.getAnnotation(Bean.class);
-            if (beanAnn != null) {
-                String beanName = determineBeanName(beanAnn, method);
-                registerBeanMethod(beanName, method, configClass);
             }
         }
     }

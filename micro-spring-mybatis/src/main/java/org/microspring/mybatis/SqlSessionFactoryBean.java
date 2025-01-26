@@ -22,6 +22,7 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
     private DataSource dataSource;
     private SqlSessionFactory sqlSessionFactory;
     private String typeAliasesPackage;
+    private Configuration configuration;
     
     @Override
     public SqlSessionFactory getObject() {
@@ -45,7 +46,7 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
     public void afterPropertiesSet() {
         try {
             // 创建MyBatis配置
-            Configuration configuration = new Configuration();
+            configuration = new Configuration();
             
             // 设置环境
             TransactionFactory transactionFactory = new JdbcTransactionFactory();
@@ -61,11 +62,6 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
             configuration.setMapUnderscoreToCamelCase(true);
             configuration.setUseGeneratedKeys(true);
             
-            // 注册 Mapper 接口
-            String basePackage = "org.microspring.mybatis.test.mapper";
-            System.out.println("Adding mappers from package: " + basePackage);
-            configuration.addMappers(basePackage);
-            
             // 创建SqlSessionFactory
             SqlSessionFactoryBuilder builder = new SqlSessionFactoryBuilder();
             this.sqlSessionFactory = builder.build(configuration);
@@ -74,6 +70,10 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
             e.printStackTrace();
             throw new RuntimeException("Error building SqlSessionFactory", e);
         }
+    }
+    
+    public Configuration getConfiguration() {
+        return configuration;
     }
     
     public void setDataSource(DataSource dataSource) {

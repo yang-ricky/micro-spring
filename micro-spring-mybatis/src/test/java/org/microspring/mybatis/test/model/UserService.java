@@ -1,8 +1,8 @@
 package org.microspring.mybatis.test.model;
 
-import org.microspring.mybatis.test.mapper.UserMapper;
 import org.microspring.stereotype.Component;
 import org.microspring.beans.factory.annotation.Autowired;
+import org.microspring.mybatis.test.mapper.UserMapper;
 
 @Component
 public class UserService {

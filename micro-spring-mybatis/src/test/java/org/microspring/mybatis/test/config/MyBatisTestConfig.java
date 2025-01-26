@@ -5,9 +5,10 @@ import org.microspring.context.annotation.Configuration;
 import org.microspring.jdbc.DriverManagerDataSource;
 import org.microspring.mybatis.SqlSessionFactoryBean;
 import org.microspring.mybatis.annotation.MapperScan;
+import org.apache.ibatis.session.SqlSessionFactory;
 
 @Configuration
-@MapperScan(basePackages = "org.microspring.mybatis.test.mapper")
+@MapperScan(basePackages = "org.microspring.mybatis.test.mapper,org.microspring.mybatis.test.mapperother")
 public class MyBatisTestConfig {
     
     @Bean
@@ -21,9 +22,9 @@ public class MyBatisTestConfig {
     }
 
     @Bean
-    public SqlSessionFactoryBean sqlSessionFactory() {
+    public SqlSessionFactory sqlSessionFactory() throws Exception {
         SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
         sqlSessionFactoryBean.setDataSource(dataSource());
-        return sqlSessionFactoryBean;
+        return sqlSessionFactoryBean.getObject();
     }
 } 
