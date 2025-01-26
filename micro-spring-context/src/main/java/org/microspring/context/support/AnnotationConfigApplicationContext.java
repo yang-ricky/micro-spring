@@ -47,10 +47,12 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
         super();
     }
     
-    public AnnotationConfigApplicationContext(String basePackage) {
+    public AnnotationConfigApplicationContext(String... basePackages) {
         super();
-        this.basePackage = basePackage;
-        refresh();
+        if (basePackages != null && basePackages.length > 0) {
+            this.basePackage = String.join(",", basePackages);
+            refresh();
+        }
     }
 
     /**
@@ -89,7 +91,8 @@ public class AnnotationConfigApplicationContext extends AbstractApplicationConte
     public void refresh() {
         if (basePackage != null) {
             // 1. 扫描组件
-            scanPackages(basePackage);
+            String[] basePackages = basePackage.split(",");
+            scanPackages(basePackages);
         }
             
         // 2. 调用 BeanFactoryPostProcessor
