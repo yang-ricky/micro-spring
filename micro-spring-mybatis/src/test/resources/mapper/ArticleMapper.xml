@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="org.microspring.mybatis.test.xml.ArticleMapper">
+    <update id="createTable">
+        CREATE TABLE IF NOT EXISTS articles (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            content TEXT,
+            user_id BIGINT
+        )
+    </update>
+    
+    <update id="dropTable">
+        DROP TABLE IF EXISTS articles
+    </update>
+    
+    <insert id="insert" parameterType="org.microspring.mybatis.test.model.Post" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO articles (title, content, user_id) 
+        VALUES (#{title}, #{content}, #{userId})
+    </insert>
+    
+    <select id="findById" parameterType="long" resultType="org.microspring.mybatis.test.model.Post">
+        SELECT id, title, content, user_id as userId 
+        FROM articles 
+        WHERE id = #{id}
+    </select>
+    
+    <update id="update" parameterType="org.microspring.mybatis.test.model.Post">
+        UPDATE articles 
+        SET title = #{title}, content = #{content}, user_id = #{userId} 
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="delete" parameterType="long">
+        DELETE FROM articles 
+        WHERE id = #{id}
+    </delete>
+    
+    <select id="findByUserId" parameterType="long" resultType="org.microspring.mybatis.test.model.Post">
+        SELECT id, title, content, user_id as userId 
+        FROM articles 
+        WHERE user_id = #{userId}
+    </select>
+</mapper> 

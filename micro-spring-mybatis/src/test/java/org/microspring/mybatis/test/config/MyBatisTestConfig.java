@@ -8,7 +8,7 @@ import org.microspring.mybatis.annotation.MapperScan;
 import org.apache.ibatis.session.SqlSessionFactory;
 
 @Configuration
-@MapperScan(basePackages = "org.microspring.mybatis.test.mapper,org.microspring.mybatis.test.mapperother")
+@MapperScan(basePackages = "org.microspring.mybatis.test.mapper,org.microspring.mybatis.test.mapperother,org.microspring.mybatis.test.xml")
 public class MyBatisTestConfig {
     
     @Bean
