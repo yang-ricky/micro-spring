@@ -11,6 +11,8 @@ const config = {
     isAll: true,
     // 要排除的目录名称数组
     excludedDirs: ['micro-spring-example', 'test'],
+    // 只包含的目录路径数组（相对于根目录）
+    onlyIncludeDirs: ['micro-spring-web','micro-spring-context','micro-spring-core'],
     // 要搜索的类名（当 isAll 为 false 时使用）
     className: [
         "BeanDefinition",
@@ -106,12 +108,35 @@ function removeMethodBodies(code) {
 }
 
 /**
+ * 检查目录是否在包含列表中
+ * @param {string} dirPath - 目录路径
+ * @returns {boolean} - 是否在包含列表中
+ */
+function isInIncludedDirectories(dirPath) {
+    // 如果没有指定包含目录，则认为所有目录都可以包含
+    if (!config.onlyIncludeDirs || config.onlyIncludeDirs.length === 0) {
+        return true;
+    }
+
+    // 检查当前目录是否在包含列表中
+    return config.onlyIncludeDirs.some(includedDir => 
+        dirPath.includes(path.sep + includedDir) || 
+        dirPath.endsWith(includedDir)
+    );
+}
+
+/**
  * 检查目录是否应该被排除
- * @param {string} dirName - 目录名称
+ * @param {string} dirPath - 目录路径
  * @returns {boolean} - 是否应该排除该目录
  */
 function shouldExcludeDirectory(dirPath) {
-    // 检查当前目录名是否在排除列表中
+    // 首先检查是否在包含列表中
+    if (!isInIncludedDirectories(dirPath)) {
+        return true;
+    }
+
+    // 然后检查是否在排除列表中
     return config.excludedDirs.some(excludedDir => 
         dirPath.includes(path.sep + excludedDir) || 
         dirPath.endsWith(excludedDir)
