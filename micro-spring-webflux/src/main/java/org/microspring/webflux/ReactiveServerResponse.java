@@ -1,5 +1,8 @@
 package org.microspring.webflux;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import reactor.core.publisher.Mono;
@@ -8,6 +11,7 @@ import reactor.core.publisher.Mono;
  * Represents a server-side HTTP response
  */
 public class ReactiveServerResponse {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     private HttpResponseStatus status = HttpResponseStatus.OK;
     private final HttpHeaders headers;
     private String body;
@@ -29,6 +33,21 @@ public class ReactiveServerResponse {
     public ReactiveServerResponse write(String data) {
         this.body = data;
         return this;
+    }
+
+    /**
+     * Write an object as JSON response
+     * @param obj The object to be written as JSON
+     * @return this response
+     */
+    public ReactiveServerResponse writeJson(Object obj) {
+        try {
+            this.body = objectMapper.writeValueAsString(obj);
+            this.headers.set(HttpHeaderNames.CONTENT_TYPE, "application/json");
+            return this;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize object to JSON", e);
+        }
     }
 
     public Mono<Void> end() {
