@@ -19,6 +19,14 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.microspring</groupId>
+            <artifactId>micro-spring-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.microspring</groupId>
+            <artifactId>micro-spring-context</artifactId>
+        </dependency>
         <!-- Netty for non-blocking I/O -->
         <dependency>
             <groupId>io.netty</groupId>
