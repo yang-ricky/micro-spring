@@ -1,24 +1,45 @@
 package org.microspring.webflux;
 
 import io.netty.handler.codec.http.HttpMethod;
+import reactor.core.publisher.Mono;
 
 /**
- * Builder for RouterFunction with a fluent API
+ * DSL for building router functions in a fluent way.
+ * Example usage:
+ * RouterFunction router = RouterFunctionBuilder.route()
+ *     .path("/api")
+ *         .GET("/hello", req -> Mono.just("Hello!"))
+ *         .POST("/echo", req -> req.getBody().map(body -> "Echo: " + body))
+ *     .path("/admin")
+ *         .GET("/status", req -> Mono.just("OK"))
+ *     .build();
  */
 public class RouterFunctionBuilder {
     private final RouterFunction routerFunction = new RouterFunction();
+    private String basePath = "";
 
     private RouterFunctionBuilder() {}
 
+    /**
+     * Start building a router function
+     */
     public static RouterFunctionBuilder route() {
         return new RouterFunctionBuilder();
+    }
+
+    /**
+     * Set base path for subsequent route definitions
+     */
+    public RouterFunctionBuilder path(String path) {
+        this.basePath = path;
+        return this;
     }
 
     /**
      * Add a GET route
      */
     public RouterFunctionBuilder GET(String path, HandlerFunction handler) {
-        routerFunction.register(HttpMethod.GET, path, handler);
+        routerFunction.register(HttpMethod.GET, buildPath(path), handler);
         return this;
     }
 
@@ -26,7 +47,7 @@ public class RouterFunctionBuilder {
      * Add a POST route
      */
     public RouterFunctionBuilder POST(String path, HandlerFunction handler) {
-        routerFunction.register(HttpMethod.POST, path, handler);
+        routerFunction.register(HttpMethod.POST, buildPath(path), handler);
         return this;
     }
 
@@ -34,7 +55,7 @@ public class RouterFunctionBuilder {
      * Add a PUT route
      */
     public RouterFunctionBuilder PUT(String path, HandlerFunction handler) {
-        routerFunction.register(HttpMethod.PUT, path, handler);
+        routerFunction.register(HttpMethod.PUT, buildPath(path), handler);
         return this;
     }
 
@@ -42,7 +63,15 @@ public class RouterFunctionBuilder {
      * Add a DELETE route
      */
     public RouterFunctionBuilder DELETE(String path, HandlerFunction handler) {
-        routerFunction.register(HttpMethod.DELETE, path, handler);
+        routerFunction.register(HttpMethod.DELETE, buildPath(path), handler);
+        return this;
+    }
+
+    /**
+     * Add a route with custom HTTP method
+     */
+    public RouterFunctionBuilder method(HttpMethod method, String path, HandlerFunction handler) {
+        routerFunction.register(method, buildPath(path), handler);
         return this;
     }
 
@@ -51,5 +80,15 @@ public class RouterFunctionBuilder {
      */
     public RouterFunction build() {
         return routerFunction;
+    }
+
+    private String buildPath(String path) {
+        if (basePath.isEmpty()) {
+            return path;
+        }
+        // Handle path joining with proper slashes
+        String normalizedBase = basePath.endsWith("/") ? basePath.substring(0, basePath.length() - 1) : basePath;
+        String normalizedPath = path.startsWith("/") ? path : "/" + path;
+        return normalizedBase + normalizedPath;
     }
 } 
