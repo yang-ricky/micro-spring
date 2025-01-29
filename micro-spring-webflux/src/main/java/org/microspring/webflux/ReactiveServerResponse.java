@@ -20,6 +20,13 @@ public class ReactiveServerResponse {
         this.headers = new io.netty.handler.codec.http.DefaultHttpHeaders();
     }
 
+    /**
+     * Create a 200 OK response
+     */
+    public static ReactiveServerResponse ok() {
+        return new ReactiveServerResponse();
+    }
+
     public ReactiveServerResponse status(HttpResponseStatus status) {
         this.status = status;
         return this;
@@ -30,8 +37,19 @@ public class ReactiveServerResponse {
         return this;
     }
 
-    public ReactiveServerResponse write(String data) {
-        this.body = data;
+    /**
+     * Set the response body
+     */
+    public ReactiveServerResponse body(String body) {
+        this.body = body;
+        return this;
+    }
+
+    /**
+     * Write the response body
+     */
+    public ReactiveServerResponse write(String content) {
+        this.body = content;
         return this;
     }
 
@@ -50,12 +68,16 @@ public class ReactiveServerResponse {
         }
     }
 
-    public Mono<Void> end() {
-        // For now, just return a completed Mono
-        // Later we'll implement actual writing to the Netty channel
-        return Mono.empty();
+    /**
+     * End the response
+     */
+    public Mono<ReactiveServerResponse> end() {
+        return Mono.just(this);
     }
 
+    /**
+     * Get the response status
+     */
     public HttpResponseStatus getStatus() {
         return status;
     }
@@ -64,6 +86,9 @@ public class ReactiveServerResponse {
         return headers;
     }
 
+    /**
+     * Get the response body
+     */
     public String getBody() {
         return body;
     }

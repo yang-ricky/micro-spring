@@ -31,8 +31,8 @@ public class ReactiveServerRequest {
 
     public URI getUri() {
         return uri;
-    }
-
+        }
+        
     public HttpHeaders getHeaders() {
         return headers;
     }
