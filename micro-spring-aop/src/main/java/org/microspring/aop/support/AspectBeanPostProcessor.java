@@ -78,8 +78,6 @@ public class AspectBeanPostProcessor implements BeanPostProcessor {
                                 afterMethod.setAccessible(true);
                                 afterMethod.invoke(aspect, method, result);
                             } catch (Exception e) {
-                                System.err.println("[ERROR] Failed to invoke afterReturning method on aspect: " + 
-                                    aspect.getClass().getSimpleName() + ", error: " + e.getMessage());
                                 e.printStackTrace();
                             }
                         }

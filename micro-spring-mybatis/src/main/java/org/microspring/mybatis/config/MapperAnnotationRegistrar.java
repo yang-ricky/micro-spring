@@ -17,37 +17,27 @@ public class MapperAnnotationRegistrar implements ImportBeanDefinitionRegistrar 
     
     @Override
     public void registerBeanDefinitions(Class<?> importingClass, DefaultBeanFactory beanFactory) {
-        System.out.println("=== MapperAnnotationRegistrar.registerBeanDefinitions ===");
-        System.out.println("Processing package: " + importingClass.getPackage().getName());
         
         // 扫描同包下的所有类
         String basePackage = importingClass.getPackage().getName();
         try {
             List<Class<?>> classes = scanPackage(basePackage);
-            System.out.println("Found " + classes.size() + " classes in package");
             
             for (Class<?> clazz : classes) {
-                System.out.println("Checking class: " + clazz.getName());
-                System.out.println("Is interface: " + clazz.isInterface());
-                System.out.println("Has @Mapper: " + clazz.isAnnotationPresent(Mapper.class));
                 
                 if (clazz.isInterface() && clazz.isAnnotationPresent(Mapper.class)) {
                     String beanName = getBeanName(clazz);
-                    System.out.println("Registering mapper with name: " + beanName);
                     
                     DefaultBeanDefinition beanDefinition = new DefaultBeanDefinition(MapperFactoryBean.class);
                     beanDefinition.addConstructorArg(new ConstructorArg(null, clazz, Class.class));
                     beanDefinition.addPropertyValue(new PropertyValue("sqlSessionFactory", "sqlSessionFactory", String.class));
                     
                     beanFactory.registerBeanDefinition(beanName, beanDefinition);
-                    System.out.println("Successfully registered mapper: " + beanName);
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error scanning package: " + e.getMessage());
             e.printStackTrace();
         }
-        System.out.println("=== End MapperAnnotationRegistrar.registerBeanDefinitions ===");
     }
     
     private List<Class<?>> scanPackage(String basePackage) throws Exception {

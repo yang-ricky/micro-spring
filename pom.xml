@@ -26,6 +26,7 @@
         <module>micro-spring-jdbc</module>
         <module>micro-spring-orm</module>
         <module>micro-spring-mybatis</module>
+        <module>micro-spring-webflux</module>
     </modules>
 
     <properties>
