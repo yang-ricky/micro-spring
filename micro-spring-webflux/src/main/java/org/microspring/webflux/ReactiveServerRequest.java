@@ -31,10 +31,19 @@ public class ReactiveServerRequest {
 
     public URI getUri() {
         return uri;
-        }
-        
+    }
+
     public HttpHeaders getHeaders() {
         return headers;
+    }
+
+    /**
+     * Get a specific header value
+     * @param name The header name
+     * @return The header value, or null if not present
+     */
+    public String getHeader(String name) {
+        return headers.get(name);
     }
 
     public Mono<String> getBody() {

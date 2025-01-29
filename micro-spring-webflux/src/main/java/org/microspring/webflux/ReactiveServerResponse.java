@@ -15,6 +15,7 @@ public class ReactiveServerResponse {
     private HttpResponseStatus status = HttpResponseStatus.OK;
     private final HttpHeaders headers;
     private String body;
+    private boolean committed = false;
 
     public ReactiveServerResponse() {
         this.headers = new io.netty.handler.codec.http.DefaultHttpHeaders();
@@ -72,7 +73,25 @@ public class ReactiveServerResponse {
      * End the response
      */
     public Mono<ReactiveServerResponse> end() {
-        return Mono.just(this);
+        if (committed) {
+            return Mono.just(this);
+        }
+        return Mono.just(this)
+            .doOnSuccess(resp -> {});
+    }
+
+    /**
+     * Check if the response has been committed
+     */
+    public boolean isCommitted() {
+        return committed;
+    }
+
+    /**
+     * Mark the response as committed
+     */
+    public void markCommitted() {
+        this.committed = true;
     }
 
     /**

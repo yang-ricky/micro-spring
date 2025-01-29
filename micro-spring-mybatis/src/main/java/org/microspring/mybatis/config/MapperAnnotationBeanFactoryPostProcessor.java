@@ -34,7 +34,6 @@ public class MapperAnnotationBeanFactoryPostProcessor implements BeanFactoryPost
                     // 检查是否已经注册
                     BeanDefinition existingBeanDefinition = beanFactory.getBeanDefinition(mapperBeanName);
                     if (existingBeanDefinition != null) {
-                        System.out.println("Mapper bean already registered: " + mapperBeanName + ", skipping...");
                         continue;
                     }
                     

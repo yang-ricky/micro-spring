@@ -31,7 +31,6 @@ public class ReactiveHttpServerTest {
     public void setUp() {
         server = new ReactiveHttpServer(PORT);
         server.start((request, response) -> {
-            System.out.println("Received request: " + request.getMethod() + " " + request.getUri());
             
             // 根据不同的路径返回不同的响应
             String path = request.getUri().getPath();

@@ -77,8 +77,6 @@ public class ReactiveHandlerMapping {
         }
 
         handlerMethods.put(routeKey, new HandlerMethod(controller, method));
-        System.out.println("[HandlerMapping] " + httpMethod + " " + path + " -> " + 
-            controller.getClass().getSimpleName() + "." + method.getName());
     }
 
     /**

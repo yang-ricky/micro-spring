@@ -13,8 +13,7 @@ public class OnlyMapperAnnotationTest {
     @Test
     public void testMapperAnnotation() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-        // 注册配置类
-        System.out.println("Registering configuration class: " + MyBatisTestConfig.class.getName());
+
         context.register(MyBatisTestConfig.class);
         
         // 设置要扫描的包

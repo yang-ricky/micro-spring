@@ -73,7 +73,6 @@ public class MapperScannerConfigurer implements BeanFactoryPostProcessor {
         // 检查是否已经注册到 Spring 容器
         BeanDefinition existingBeanDefinition = beanFactory.getBeanDefinition(beanName);
         if (existingBeanDefinition != null) {
-            System.out.println("*****************Mapper bean already registered in Spring: " + beanName + ", skipping...");
             return;
         }
         

@@ -11,6 +11,8 @@ import io.netty.util.CharsetUtil;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
 
 /**
@@ -21,9 +23,92 @@ public class ReactiveHttpServer {
     private Channel serverChannel;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
+    private final List<WebFilter> filters = new ArrayList<>();
+    private final List<WebExceptionHandler> exceptionHandlers = new ArrayList<>();
 
     public ReactiveHttpServer(int port) {
         this.port = port;
+    }
+
+    /**
+     * Add a filter to the chain
+     */
+    public void addFilter(WebFilter filter) {
+        filters.add(filter);
+    }
+
+    /**
+     * Add an exception handler
+     */
+    public void addExceptionHandler(WebExceptionHandler handler) {
+        exceptionHandlers.add(handler);
+    }
+
+    private void sendResponse(ChannelHandlerContext ctx, HttpVersion version, ReactiveServerResponse response) {
+        if (response.isCommitted()) {
+            return;
+        }
+        response.markCommitted();
+        
+        FullHttpResponse nettyResponse = new DefaultFullHttpResponse(
+            version,
+            response.getStatus()
+        );
+
+        if (response.getBody() != null) {
+            nettyResponse.content().writeBytes(response.getBody().getBytes());
+        }
+
+        response.getHeaders().forEach(entry -> 
+            nettyResponse.headers().set(entry.getKey(), entry.getValue())
+        );
+
+        nettyResponse.headers().set(HttpHeaderNames.CONTENT_LENGTH, 
+            nettyResponse.content().readableBytes());
+        
+        nettyResponse.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+
+        // Write the response first
+        ChannelFuture writeFuture = ctx.writeAndFlush(nettyResponse);
+        
+        // Add listener to close the connection after writing is complete
+        writeFuture.addListener(future -> {
+            if (future.isSuccess()) {
+                // Ensure we close the connection after the response is written
+                if (ctx.channel().isActive()) {
+                    ctx.close().addListener(closeFuture -> {
+                        if (closeFuture.isSuccess()) {
+                        }
+                    });
+                }
+            } else {
+                future.cause().printStackTrace();
+                if (ctx.channel().isActive()) {
+                    ctx.close();
+                }
+            }
+        });
+    }
+
+    private Mono<Void> handleError(Throwable ex, ReactiveServerRequest request, ReactiveServerResponse response, 
+            ChannelHandlerContext ctx, HttpVersion version) {
+        
+        // Try exception handlers first
+        ExceptionHandlerChain exceptionHandlerChain = new ExceptionHandlerChain(exceptionHandlers);
+        return exceptionHandlerChain.handle(request, response, ex)
+            .doOnSubscribe(s -> {})
+            .doOnSuccess(v -> {
+                sendResponse(ctx, version, response);
+            })
+            .doOnError(error -> {})
+            .onErrorResume(error -> {
+                if (!response.isCommitted()) {
+                    response.status(HttpResponseStatus.INTERNAL_SERVER_ERROR)
+                        .body("Internal Server Error");
+                    sendResponse(ctx, version, response);
+                }
+                return Mono.empty();
+            });
     }
 
     public void start(BiFunction<ReactiveServerRequest, ReactiveServerResponse, Mono<ReactiveServerResponse>> handler) {
@@ -43,7 +128,7 @@ public class ReactiveHttpServer {
                         pipeline.addLast(new SimpleChannelInboundHandler<FullHttpRequest>() {
                             @Override
                             protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
-                                // Convert ByteBuf to String properly
+                                
                                 ByteBuf content = request.content();
                                 String requestBody = content.toString(CharsetUtil.UTF_8);
                                 
@@ -55,27 +140,55 @@ public class ReactiveHttpServer {
                                 );
 
                                 ReactiveServerResponse reactiveResponse = new ReactiveServerResponse();
-                                handler.apply(reactiveRequest, reactiveResponse)
-                                    .subscribe(response -> {
-                                        FullHttpResponse nettyResponse = new DefaultFullHttpResponse(
-                                            request.protocolVersion(),
-                                            response.getStatus()
+
+                                try {
+                                    // Create the final handler that will process the request
+                                    WebHandler webHandler = (req, resp) -> 
+                                        handler.apply(req, resp)
+                                            .doOnSubscribe(s -> {})
+                                            .flatMap(response -> {
+                                                if (!response.isCommitted()) {
+                                                    sendResponse(ctx, request.protocolVersion(), response);
+                                                }
+                                                return Mono.empty();
+                                            })
+                                            .doOnError(e -> {})
+                                            .doOnSuccess(response -> {})
+                                            .then();
+
+                                    // Create filter chain with the handler
+                                    DefaultWebFilterChain filterChain = new DefaultWebFilterChain(filters, webHandler);
+
+                                    // Execute the filter chain with exception handling
+                                    filterChain.filter(reactiveRequest, reactiveResponse)
+                                        .doOnSubscribe(s -> {})
+                                        .doOnError(ex -> {
+                                        })
+                                        .onErrorResume(ex -> 
+                                            handleError(ex, reactiveRequest, reactiveResponse, ctx, request.protocolVersion())
+                                        )
+                                        .doFinally(signal -> {
+                                            if (!reactiveResponse.isCommitted()) {
+                                                sendResponse(ctx, request.protocolVersion(), reactiveResponse);
+                                            }
+                                        })
+                                        .subscribe();
+                                } catch (Exception e) {
+                                    handleError(e, reactiveRequest, reactiveResponse, ctx, request.protocolVersion())
+                                        .subscribe(
+                                            null,
+                                            error -> {},
+                                            () -> {}
                                         );
+                                }
+                            }
 
-                                        if (response.getBody() != null) {
-                                            nettyResponse.content().writeBytes(response.getBody().getBytes());
-                                        }
-
-                                        response.getHeaders().forEach(entry -> 
-                                            nettyResponse.headers().set(entry.getKey(), entry.getValue())
-                                        );
-
-                                        nettyResponse.headers().set(HttpHeaderNames.CONTENT_LENGTH, 
-                                            nettyResponse.content().readableBytes());
-
-                                        ctx.writeAndFlush(nettyResponse)
-                                           .addListener(ChannelFutureListener.CLOSE);
-                                    });
+                            @Override
+                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                                cause.printStackTrace();
+                                if (ctx.channel().isActive()) {
+                                    ctx.close();
+                                }
                             }
                         });
                     }
@@ -83,7 +196,6 @@ public class ReactiveHttpServer {
 
             ChannelFuture future = bootstrap.bind(port).sync();
             serverChannel = future.channel();
-            System.out.println("Server started on port " + port);
         } catch (Exception e) {
             shutdown();
             throw new RuntimeException("Failed to start server", e);

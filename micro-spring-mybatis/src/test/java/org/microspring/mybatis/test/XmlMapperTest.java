@@ -16,8 +16,7 @@ public class XmlMapperTest {
     @Test
     public void testXmlMapper() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-        // 注册配置类
-        System.out.println("Registering XML configuration class: " + MyBatisXmlConfig.class.getName());
+
         context.register(MyBatisXmlConfig.class);
         
         // 设置要扫描的包
@@ -71,8 +70,7 @@ public class XmlMapperTest {
     @Test
     public void testEdgeCases() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-        // 注册配置类
-        System.out.println("Registering XML configuration class: " + MyBatisXmlConfig.class.getName());
+        
         context.register(MyBatisXmlConfig.class);
         
         // 设置要扫描的包
@@ -115,8 +113,7 @@ public class XmlMapperTest {
     @Test
     public void testBatchOperations() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-        // 注册配置类
-        System.out.println("Registering XML configuration class: " + MyBatisXmlConfig.class.getName());
+
         context.register(MyBatisXmlConfig.class);
         
         // 设置要扫描的包
@@ -155,8 +152,7 @@ public class XmlMapperTest {
     @Test
     public void testErrorHandling() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-        // 注册配置类
-        System.out.println("Registering XML configuration class: " + MyBatisXmlConfig.class.getName());
+   
         context.register(MyBatisXmlConfig.class);
         
         // 设置要扫描的包
@@ -194,8 +190,7 @@ public class XmlMapperTest {
     @Test
     public void testConcurrentOperations() throws InterruptedException {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-        // 注册配置类
-        System.out.println("Registering XML configuration class: " + MyBatisXmlConfig.class.getName());
+
         context.register(MyBatisXmlConfig.class);
         
         // 设置要扫描的包
