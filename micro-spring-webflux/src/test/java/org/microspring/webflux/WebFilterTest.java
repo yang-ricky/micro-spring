@@ -4,6 +4,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.microspring.web.annotation.ExceptionHandler;
+import org.microspring.web.annotation.RestControllerAdvice;
 import reactor.core.publisher.Mono;
 
 import java.io.BufferedReader;
@@ -20,9 +22,22 @@ public class WebFilterTest {
     private ReactiveHttpServer server;
     private static final int PORT = 8082;
 
+    @RestControllerAdvice
+    public static class TestExceptionHandler {
+        @ExceptionHandler(IllegalArgumentException.class)
+        public Mono<ReactiveServerResponse> handleIllegalArgument(IllegalArgumentException ex) {
+            return Mono.just(new ReactiveServerResponse()
+                .status(HttpResponseStatus.BAD_REQUEST)
+                .write("Bad Request: " + ex.getMessage()));
+        }
+    }
+
     @Before
     public void setUp() {
         server = new ReactiveHttpServer(PORT);
+
+        // Register exception handler
+        server.registerExceptionHandler(new TestExceptionHandler());
 
         // Add authentication filter
         server.addFilter((request, response, chain) -> {
@@ -37,16 +52,6 @@ public class WebFilterTest {
         // Add logging filter
         server.addFilter((request, response, chain) -> {
             return chain.filter(request, response);
-        });
-
-        // Add exception handler
-        server.addExceptionHandler((request, response, ex) -> {
-            if (ex instanceof IllegalArgumentException) {
-                response.status(HttpResponseStatus.BAD_REQUEST)
-                    .body("Bad Request: " + ex.getMessage());
-                return Mono.empty();
-            }
-            return Mono.error(ex);
         });
 
         // Start server with a simple handler
