@@ -1,5 +1,6 @@
 package org.microspring.webflux;
 
+import org.microspring.web.annotation.RequestHeader;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.InvocationTargetException;
@@ -26,33 +27,82 @@ public class HandlerMethod {
      * Invoke the handler method
      */
     @SuppressWarnings("unchecked")
-    public Mono<Object> invoke(Object... args) {
+    public Mono<Object> invoke(ReactiveServerRequest request) {
         try {
-            // 检查方法参数
             Parameter[] parameters = method.getParameters();
-            Object[] actualArgs = new Object[parameters.length];
-            
-            // 如果方法没有参数，使用空数组
-            if (parameters.length == 0) {
-                actualArgs = new Object[0];
-            } 
-            // 如果方法有一个参数且是 ReactiveServerRequest 类型
-            else if (parameters.length == 1 && parameters[0].getType().equals(ReactiveServerRequest.class)) {
-                actualArgs[0] = args[0]; // 传入 request 参数
-            }
-            // 其他情况抛出异常
-            else {
-                throw new IllegalArgumentException("Method " + method.getName() + 
-                    " must have either no parameters or a single ReactiveServerRequest parameter");
+            Object[] args = new Object[parameters.length];
+
+            // First validate all headers to fail fast
+            for (int i = 0; i < parameters.length; i++) {
+                Parameter param = parameters[i];
+                RequestHeader headerAnn = param.getAnnotation(RequestHeader.class);
+                if (headerAnn != null) {
+                    // This will throw IllegalArgumentException if required header is missing
+                    validateHeaderPresent(request, headerAnn, param);
+                }
             }
 
-            Object result = method.invoke(bean, actualArgs);
+            // Then resolve all parameters
+            for (int i = 0; i < parameters.length; i++) {
+                Parameter param = parameters[i];
+                if (param.getType().equals(ReactiveServerRequest.class)) {
+                    args[i] = request;
+                } else {
+                    RequestHeader headerAnn = param.getAnnotation(RequestHeader.class);
+                    if (headerAnn != null) {
+                        args[i] = resolveHeaderValue(request, headerAnn, param);
+                    } else {
+                        throw new IllegalArgumentException("Unsupported parameter type: " + param.getType());
+                    }
+                }
+            }
+
+            Object result = method.invoke(bean, args);
             if (result instanceof Mono) {
                 return (Mono<Object>) result;
             }
             return Mono.just(result);
+        } catch (IllegalArgumentException e) {
+            // Directly propagate IllegalArgumentException for header validation errors
+            return Mono.error(e);
         } catch (IllegalAccessException | InvocationTargetException e) {
             return Mono.error(new RuntimeException("Failed to invoke handler method", e));
         }
+    }
+
+    private void validateHeaderPresent(ReactiveServerRequest request, RequestHeader headerAnn, Parameter param) {
+        String headerName = headerAnn.value();
+        if (headerName.isEmpty()) {
+            headerName = param.getName();
+        }
+
+        String headerValue = request.getHeader(headerName);
+        if (headerValue == null && headerAnn.required() && 
+            headerAnn.defaultValue().equals("\n\t\t\n\t\t\n\ue000\ue001\ue002\n\t\t\t\t\n")) {
+            throw new IllegalArgumentException("Required header '" + headerName + "' is not present");
+        }
+    }
+
+    private String resolveHeaderValue(ReactiveServerRequest request, RequestHeader headerAnn, Parameter param) {
+        String headerName = headerAnn.value();
+        if (headerName.isEmpty()) {
+            headerName = param.getName();
+        }
+
+        String headerValue = request.getHeader(headerName);
+        if (headerValue != null) {
+            return headerValue;
+        }
+
+        if (!headerAnn.required()) {
+            String defaultValue = headerAnn.defaultValue();
+            if (!defaultValue.equals("\n\t\t\n\t\t\n\ue000\ue001\ue002\n\t\t\t\t\n")) {
+                return defaultValue;
+            }
+            return null;
+        }
+
+        // This should never happen because we validate headers first
+        throw new IllegalArgumentException("Required header '" + headerName + "' is not present");
     }
 } 
