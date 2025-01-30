@@ -60,15 +60,21 @@ public class ReactiveHandlerMapping {
         
         // Check for duplicate routes
         for (HandlerMethod existing : handlerMethods) {
-            if (existing.matches(path) && 
-                method.getAnnotation(RequestMapping.class).method().equals(
-                    existing.getMethod().getAnnotation(RequestMapping.class).method())) {
-                throw new IllegalStateException(
-                    String.format("Duplicate route found: %s %s, between %s and %s",
-                        httpMethod, path,
-                        existing.getMethod(),
-                        method)
-                );
+            if (existing.matches(path)) {
+                RequestMethod[] existingMethods = existing.getMethod().getAnnotation(RequestMapping.class).method();
+                RequestMethod[] newMethods = method.getAnnotation(RequestMapping.class).method();
+                
+                // 如果两个路由都没有指定方法（默认GET）或者有相同的方法，则冲突
+                if ((existingMethods.length == 0 && newMethods.length == 0) ||
+                    (existingMethods.length > 0 && newMethods.length > 0 &&
+                     convertToNettyMethod(existingMethods[0]).equals(httpMethod))) {
+                    throw new IllegalStateException(
+                        String.format("Duplicate route found: %s %s, between %s and %s",
+                            httpMethod, path,
+                            existing.getMethod(),
+                            method)
+                    );
+                }
             }
         }
 
