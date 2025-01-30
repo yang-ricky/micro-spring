@@ -27,6 +27,7 @@
         <module>micro-spring-orm</module>
         <module>micro-spring-mybatis</module>
         <module>micro-spring-webflux</module>
+        <module>micro-spring-security</module>
     </modules>
 
     <properties>
