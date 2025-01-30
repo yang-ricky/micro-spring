@@ -8,6 +8,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
+import org.microspring.webflux.exception.ExceptionHandlerRegistry;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -25,6 +26,7 @@ public class ReactiveHttpServer {
     private EventLoopGroup workerGroup;
     private final List<WebFilter> filters = new ArrayList<>();
     private final List<WebExceptionHandler> exceptionHandlers = new ArrayList<>();
+    private final ExceptionHandlerRegistry exceptionHandlerRegistry = new ExceptionHandlerRegistry();
 
     public ReactiveHttpServer(int port) {
         this.port = port;
@@ -42,6 +44,13 @@ public class ReactiveHttpServer {
      */
     public void addExceptionHandler(WebExceptionHandler handler) {
         exceptionHandlers.add(handler);
+    }
+
+    /**
+     * Register a @RestControllerAdvice bean for exception handling
+     */
+    public void registerExceptionHandler(Object adviceBean) {
+        exceptionHandlerRegistry.registerExceptionHandler(adviceBean);
     }
 
     private void sendResponse(ChannelHandlerContext ctx, HttpVersion version, ReactiveServerResponse response) {
@@ -93,22 +102,43 @@ public class ReactiveHttpServer {
     private Mono<Void> handleError(Throwable ex, ReactiveServerRequest request, ReactiveServerResponse response, 
             ChannelHandlerContext ctx, HttpVersion version) {
         
-        // Try exception handlers first
-        ExceptionHandlerChain exceptionHandlerChain = new ExceptionHandlerChain(exceptionHandlers);
-        return exceptionHandlerChain.handle(request, response, ex)
-            .doOnSubscribe(s -> {})
-            .doOnSuccess(v -> {
-                sendResponse(ctx, version, response);
+        // First try @ExceptionHandler methods
+        return Mono.justOrEmpty(exceptionHandlerRegistry.findHandler(ex))
+            .flatMap(handler -> handler.invoke(ex))
+            .map(result -> {
+                if (result instanceof ReactiveServerResponse) {
+                    return (ReactiveServerResponse) result;
+                } else {
+                    response.write(result.toString());
+                    return response;
+                }
             })
-            .doOnError(error -> {})
-            .onErrorResume(error -> {
-                if (!response.isCommitted()) {
-                    response.status(HttpResponseStatus.INTERNAL_SERVER_ERROR)
-                        .body("Internal Server Error");
-                    sendResponse(ctx, version, response);
+            .flatMap(resp -> {
+                if (!resp.isCommitted()) {
+                    sendResponse(ctx, version, resp);
                 }
                 return Mono.empty();
-            });
+            })
+            .onErrorResume(error -> {
+                // If exception handler fails, try WebExceptionHandlers
+                ExceptionHandlerChain exceptionHandlerChain = new ExceptionHandlerChain(exceptionHandlers);
+                return exceptionHandlerChain.handle(request, response, ex)
+                    .doOnSuccess(v -> {
+                        if (!response.isCommitted()) {
+                            sendResponse(ctx, version, response);
+                        }
+                    })
+                    .onErrorResume(e -> {
+                        // If all handlers fail, return 500
+                        if (!response.isCommitted()) {
+                            response.status(HttpResponseStatus.INTERNAL_SERVER_ERROR)
+                                .write("Internal Server Error");
+                            sendResponse(ctx, version, response);
+                        }
+                        return Mono.empty();
+                    });
+            })
+            .then();
     }
 
     public void start(BiFunction<ReactiveServerRequest, ReactiveServerResponse, Mono<ReactiveServerResponse>> handler) {

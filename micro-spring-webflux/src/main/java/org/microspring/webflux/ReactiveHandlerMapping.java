@@ -7,8 +7,8 @@ import org.microspring.web.annotation.RequestMethod;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -16,8 +16,8 @@ import java.util.Objects;
  */
 public class ReactiveHandlerMapping {
     
-    // Key: path + method, Value: HandlerMethod
-    private final Map<RouteKey, HandlerMethod> handlerMethods = new HashMap<>();
+    // List of handler methods to support path pattern matching
+    private final List<HandlerMethod> handlerMethods = new ArrayList<>();
 
     /**
      * Register a controller bean and its methods
@@ -56,15 +56,20 @@ public class ReactiveHandlerMapping {
     }
 
     private void registerRoute(String path, HttpMethod httpMethod, Method method, Object controller) {
-        RouteKey routeKey = new RouteKey(path, httpMethod);
-        if (handlerMethods.containsKey(routeKey)) {
-            HandlerMethod existing = handlerMethods.get(routeKey);
-            throw new IllegalStateException(
-                String.format("Duplicate route found: %s %s, between %s and %s",
-                    httpMethod, path,
-                    existing.getMethod(),
-                    method)
-            );
+        HandlerMethod handlerMethod = new HandlerMethod(controller, method);
+        
+        // Check for duplicate routes
+        for (HandlerMethod existing : handlerMethods) {
+            if (existing.matches(path) && 
+                method.getAnnotation(RequestMapping.class).method().equals(
+                    existing.getMethod().getAnnotation(RequestMapping.class).method())) {
+                throw new IllegalStateException(
+                    String.format("Duplicate route found: %s %s, between %s and %s",
+                        httpMethod, path,
+                        existing.getMethod(),
+                        method)
+                );
+            }
         }
 
         // Verify return type is Mono
@@ -76,14 +81,30 @@ public class ReactiveHandlerMapping {
             );
         }
 
-        handlerMethods.put(routeKey, new HandlerMethod(controller, method));
+        handlerMethods.add(handlerMethod);
     }
 
     /**
      * Find handler method for given path and HTTP method
      */
     public HandlerMethod getHandler(String path, HttpMethod method) {
-        return handlerMethods.get(new RouteKey(path, method));
+        
+        for (HandlerMethod handlerMethod : handlerMethods) {
+            
+            if (handlerMethod.matches(path)) {
+                RequestMethod[] methods = handlerMethod.getMethod()
+                    .getAnnotation(RequestMapping.class)
+                    .method();
+                
+                // If no methods specified or method matches
+                if (methods.length == 0 || 
+                    convertToNettyMethod(methods[0]).equals(method)) {
+                    return handlerMethod;
+                }
+            }
+        }
+
+        return null;
     }
 
     private HttpMethod convertToNettyMethod(RequestMethod springMethod) {
@@ -98,32 +119,6 @@ public class ReactiveHandlerMapping {
                 return HttpMethod.DELETE;
             default:
                 throw new IllegalArgumentException("Unsupported HTTP method: " + springMethod);
-        }
-    }
-
-    /**
-     * Key class for route mapping
-     */
-    private static class RouteKey {
-        private final String path;
-        private final HttpMethod method;
-
-        public RouteKey(String path, HttpMethod method) {
-            this.path = path;
-            this.method = method;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            RouteKey routeKey = (RouteKey) o;
-            return Objects.equals(path, routeKey.path) && method == routeKey.method;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(path, method);
         }
     }
 } 
