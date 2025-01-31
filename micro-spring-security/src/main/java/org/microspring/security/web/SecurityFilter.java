@@ -1,9 +1,8 @@
 package org.microspring.security.web;
 
 import org.apache.commons.codec.binary.Base64;
-import org.microspring.security.core.SecurityContext;
-import org.microspring.security.core.SecurityContextHolder;
-import org.microspring.security.core.UsernamePasswordAuthenticationToken;
+import org.microspring.security.core.*;
+import org.microspring.security.crypto.password.PasswordEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +19,14 @@ public class SecurityFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(SecurityFilter.class);
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BASIC_PREFIX = "Basic ";
+
+    private final UserDetailsService userDetailsService;
+    private final PasswordEncoder passwordEncoder;
+
+    public SecurityFilter(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+        this.userDetailsService = userDetailsService;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -78,18 +85,48 @@ public class SecurityFilter implements Filter {
                 return;
             }
 
-            // 创建认证token并存储到SecurityContext
-            UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
-            
-            // TODO: 这里应该进行实际的用户名密码验证
-            // 现在为了演示，我们简单地认为所有请求都是认证成功的
-            token.setAuthenticated(true);
-            
-            SecurityContext context = SecurityContextHolder.getContext();
-            context.setAuthentication(token);
+            try {
+                // 加载用户信息
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            // 继续处理请求
-            chain.doFilter(request, response);
+                // 验证用户状态
+                if (!userDetails.isEnabled()) {
+                    unauthorized(httpResponse, "User account is disabled");
+                    return;
+                }
+                if (!userDetails.isAccountNonLocked()) {
+                    unauthorized(httpResponse, "User account is locked");
+                    return;
+                }
+                if (!userDetails.isAccountNonExpired()) {
+                    unauthorized(httpResponse, "User account is expired");
+                    return;
+                }
+                if (!userDetails.isCredentialsNonExpired()) {
+                    unauthorized(httpResponse, "User credentials are expired");
+                    return;
+                }
+
+                // 验证密码
+                if (!passwordEncoder.matches(password, userDetails.getPassword())) {
+                    unauthorized(httpResponse, "Invalid password");
+                    return;
+                }
+
+                // 创建认证token并存储到SecurityContext
+                UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
+                token.setAuthenticated(true);
+                
+                SecurityContext context = SecurityContextHolder.getContext();
+                context.setAuthentication(token);
+
+                logger.info("User '{}' successfully authenticated", username);
+
+                // 继续处理请求
+                chain.doFilter(request, response);
+            } catch (UsernameNotFoundException e) {
+                unauthorized(httpResponse, "User not found: " + username);
+            }
         } catch (Exception e) {
             logger.error("Authentication error", e);
             unauthorized(httpResponse, "Internal authentication error");

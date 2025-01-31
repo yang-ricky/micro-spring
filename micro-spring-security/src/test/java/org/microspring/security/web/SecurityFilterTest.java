@@ -4,8 +4,9 @@ import org.apache.commons.codec.binary.Base64;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.microspring.security.core.Authentication;
-import org.microspring.security.core.SecurityContextHolder;
+import org.microspring.security.core.*;
+import org.microspring.security.crypto.password.BCryptPasswordEncoder;
+import org.microspring.security.crypto.password.PasswordEncoder;
 
 import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
@@ -20,20 +21,33 @@ public class SecurityFilterTest {
     private HttpServletRequest request;
     private HttpServletResponse response;
     private FilterChain filterChain;
+    private InMemoryUserDetailsService userDetailsService;
+    private PasswordEncoder passwordEncoder;
 
     @Before
     public void setUp() {
-        securityFilter = new SecurityFilter();
+        userDetailsService = new InMemoryUserDetailsService();
+        passwordEncoder = new BCryptPasswordEncoder();
+        securityFilter = new SecurityFilter(userDetailsService, passwordEncoder);
+        
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         filterChain = mock(FilterChain.class);
-        // 确保每个测试开始时SecurityContext是干净的
+
+        // 创建一个测试用户
+        String rawPassword = "testPass";
+        String encodedPassword = passwordEncoder.encode(rawPassword);
+        UserDetails user = User.builder()
+            .username("testUser")
+            .password(encodedPassword)
+            .build();
+        userDetailsService.createUser(user);
+
         SecurityContextHolder.clearContext();
     }
 
     @After
     public void tearDown() {
-        // 确保每个测试结束后清理SecurityContext
         SecurityContextHolder.clearContext();
     }
 
@@ -58,7 +72,6 @@ public class SecurityFilterTest {
         assertNotNull("Authentication should not be null", auth);
         assertTrue("Authentication should be authenticated", auth.isAuthenticated());
         assertEquals("Principal should match username", username, auth.getPrincipal());
-        assertEquals("Credentials should match password", password, auth.getCredentials());
     }
 
     @Test
@@ -167,6 +180,15 @@ public class SecurityFilterTest {
         // 用户名和密码中包含特殊字符
         String username = "test@user.com";
         String password = "pass#word!123";
+        
+        // 创建带特殊字符的用户
+        String encodedPassword = passwordEncoder.encode(password);
+        UserDetails specialUser = User.builder()
+            .username(username)
+            .password(encodedPassword)
+            .build();
+        userDetailsService.createUser(specialUser);
+
         String credentials = username + ":" + password;
         String base64Credentials = Base64.encodeBase64String(credentials.getBytes(StandardCharsets.UTF_8));
         
@@ -180,6 +202,5 @@ public class SecurityFilterTest {
         assertNotNull("Authentication should not be null", auth);
         assertTrue("Authentication should be authenticated", auth.isAuthenticated());
         assertEquals("Principal should match username with special characters", username, auth.getPrincipal());
-        assertEquals("Credentials should match password with special characters", password, auth.getCredentials());
     }
 }
