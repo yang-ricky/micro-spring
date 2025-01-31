@@ -66,7 +66,6 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
             // 注册Mapper接口
             if (mapperInterfaces != null) {
                 for (Class<?> mapperInterface : mapperInterfaces) {
-                    System.out.println("Registering mapper interface: " + mapperInterface.getName());
                     configuration.addMapper(mapperInterface);
                 }
             }

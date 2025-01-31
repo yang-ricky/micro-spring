@@ -1,11 +1,14 @@
 package org.microspring.security.core;
 
+import java.util.*;
+
 /**
  * UserDetails的默认实现
  */
 public class User implements UserDetails {
     private final String username;
     private final String password;
+    private final Set<GrantedAuthority> authorities;
     private final boolean accountNonExpired;
     private final boolean accountNonLocked;
     private final boolean credentialsNonExpired;
@@ -14,6 +17,7 @@ public class User implements UserDetails {
     private User(Builder builder) {
         this.username = builder.username;
         this.password = builder.password;
+        this.authorities = Collections.unmodifiableSet(new HashSet<>(builder.authorities));
         this.accountNonExpired = builder.accountNonExpired;
         this.accountNonLocked = builder.accountNonLocked;
         this.credentialsNonExpired = builder.credentialsNonExpired;
@@ -28,6 +32,11 @@ public class User implements UserDetails {
     @Override
     public String getPassword() {
         return password;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
     }
 
     @Override
@@ -57,6 +66,7 @@ public class User implements UserDetails {
     public static class Builder {
         private String username;
         private String password;
+        private final Set<GrantedAuthority> authorities = new HashSet<>();
         private boolean accountNonExpired = true;
         private boolean accountNonLocked = true;
         private boolean credentialsNonExpired = true;
@@ -69,6 +79,22 @@ public class User implements UserDetails {
 
         public Builder password(String password) {
             this.password = password;
+            return this;
+        }
+
+        public Builder authorities(Collection<? extends GrantedAuthority> authorities) {
+            this.authorities.clear();
+            if (authorities != null) {
+                this.authorities.addAll(authorities);
+            }
+            return this;
+        }
+
+        public Builder roles(String... roles) {
+            this.authorities.clear();
+            for (String role : roles) {
+                this.authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+            }
             return this;
         }
 

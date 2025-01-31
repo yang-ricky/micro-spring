@@ -63,12 +63,6 @@ public class SecurityFilter implements Filter {
                 return;
             }
 
-            // 检查是否只包含一个冒号
-            if (credentials.indexOf(':') != credentials.lastIndexOf(':')) {
-                unauthorized(httpResponse, "Invalid Basic authentication format: multiple colons found");
-                return;
-            }
-
             String[] values = credentials.split(":", 2);
             
             if (values.length != 2) {
@@ -78,12 +72,6 @@ public class SecurityFilter implements Filter {
 
             String username = values[0];
             String password = values[1];
-
-            // 验证用户名和密码不能为空
-            if (username.trim().isEmpty() || password.trim().isEmpty()) {
-                unauthorized(httpResponse, "Username and password cannot be empty");
-                return;
-            }
 
             try {
                 // 加载用户信息
@@ -114,22 +102,21 @@ public class SecurityFilter implements Filter {
                 }
 
                 // 创建认证token并存储到SecurityContext
-                UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
-                token.setAuthenticated(true);
+                UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+                    username, null, userDetails.getAuthorities());
                 
                 SecurityContext context = SecurityContextHolder.getContext();
                 context.setAuthentication(token);
 
-                logger.info("User '{}' successfully authenticated", username);
-
-                // 继续处理请求
                 chain.doFilter(request, response);
             } catch (UsernameNotFoundException e) {
                 unauthorized(httpResponse, "User not found: " + username);
+                return;
             }
         } catch (Exception e) {
-            logger.error("Authentication error", e);
+            e.printStackTrace();
             unauthorized(httpResponse, "Internal authentication error");
+            return;
         }
     }
 
