@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 完全禁用某些包的日志 -->
+    <logger name="kafka" level="ERROR"/>
+    <logger name="org.apache.kafka" level="ERROR"/>
+    <logger name="org.apache.zookeeper" level="ERROR"/>
+    <logger name="state.change.logger" level="ERROR"/>
+    <logger name="org.apache.curator" level="ERROR"/>
+    
+    <!-- 特别处理一些包的日志级别 -->
+    <logger name="kafka.server.BrokerMetadataCheckpoint" level="ERROR"/>
+    <logger name="org.apache.zookeeper.server.ServerCnxnFactory" level="ERROR"/>
+    <logger name="org.apache.curator.test" level="ERROR"/>
+
+    <!-- 根日志级别 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration> 

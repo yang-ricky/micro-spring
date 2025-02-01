@@ -29,6 +29,7 @@
         <module>micro-spring-webflux</module>
         <module>micro-spring-security</module>
         <module>micro-spring-redis</module>
+        <module>micro-spring-kafka</module>
     </modules>
 
     <properties>
