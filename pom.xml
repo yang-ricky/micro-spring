@@ -28,6 +28,7 @@
         <module>micro-spring-mybatis</module>
         <module>micro-spring-webflux</module>
         <module>micro-spring-security</module>
+        <module>micro-spring-redis</module>
     </modules>
 
     <properties>
