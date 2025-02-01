@@ -11,13 +11,11 @@ import static org.junit.Assert.*;
 
 public class AdviceTest {
 
-    // Test service interface
     interface TestService {
         String doSomething(String input);
         void throwException() throws Exception;
     }
 
-    // Test service implementation
     static class TestServiceImpl implements TestService {
         @Override
         public String doSomething(String input) {
@@ -30,7 +28,6 @@ public class AdviceTest {
         }
     }
 
-    // Test aspect
     static class TestAspect {
         private final List<String> executionOrder = new ArrayList<>();
 
@@ -73,34 +70,28 @@ public class AdviceTest {
         TestService target = new TestServiceImpl();
         TestAspect aspect = new TestAspect();
 
-        // Create interceptors in the correct order (from outer to inner)
         List<MethodInterceptor> interceptors = new ArrayList<>();
         
-        // 1. After advice is the outermost (will execute last in finally)
         interceptors.add(new AfterAdviceInterceptor(aspect,
             TestAspect.class.getMethod("afterAdvice", JoinPoint.class)));
             
-        // 2. Before advice executes before proceeding
         interceptors.add(new BeforeAdviceInterceptor(aspect, 
             TestAspect.class.getMethod("beforeAdvice", JoinPoint.class)));
             
-        // 3. AfterReturning should execute before After but after Around
         interceptors.add(new AfterReturningAdviceInterceptor(aspect,
             TestAspect.class.getMethod("afterReturningAdvice", JoinPoint.class, Object.class), "result"));
             
-        // 4. Around advice is the innermost (closest to target method)
         interceptors.add(new AroundAdviceInterceptor(aspect,
             TestAspect.class.getMethod("aroundAdvice", ProceedingJoinPoint.class)));
 
-        // Create proxy
+
         AopProxy proxy = new JdkDynamicAopProxy(target, interceptors);
         TestService proxyObject = (TestService) proxy.getProxy();
 
-        // Test normal method execution
         String result = proxyObject.doSomething("World");
         assertEquals("Hello, World", result);
 
-        // Verify execution order
+
         List<String> executionOrder = aspect.getExecutionOrder();
         assertEquals("before", executionOrder.get(0));
         assertEquals("around-before", executionOrder.get(1));
@@ -108,16 +99,16 @@ public class AdviceTest {
         assertEquals("afterReturning", executionOrder.get(3));
         assertEquals("after", executionOrder.get(4));
 
-        // Clear execution order for exception test
+
         executionOrder.clear();
 
-        // Test exception handling
+
         List<MethodInterceptor> exceptionInterceptors = new ArrayList<>();
         
-        // After advice should still be the outermost
+
         exceptionInterceptors.add(new AfterAdviceInterceptor(aspect,
             TestAspect.class.getMethod("afterAdvice", JoinPoint.class)));
-        // AfterThrowing advice
+
         exceptionInterceptors.add(new AfterThrowingAdviceInterceptor(aspect,
             TestAspect.class.getMethod("afterThrowingAdvice", JoinPoint.class, Exception.class), "ex"));
 

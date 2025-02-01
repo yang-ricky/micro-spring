@@ -6,9 +6,7 @@ import org.microspring.aop.adapter.MethodInvocationAdapter;
 
 import java.lang.reflect.Method;
 
-/**
- * Interceptor for handling AfterReturning advice.
- */
+
 public class AfterReturningAdviceInterceptor implements MethodInterceptor {
     private final Object aspectInstance;
     private final Method adviceMethod;
@@ -25,7 +23,6 @@ public class AfterReturningAdviceInterceptor implements MethodInterceptor {
     public Object invoke(MethodInvocation invocation) throws Throwable {
         Object returnValue = invocation.proceed();
         
-        // Execute after returning advice with adapted JoinPoint and return value if parameter name is specified
         if (returningParameterName != null && !returningParameterName.isEmpty()) {
             adviceMethod.invoke(aspectInstance, new MethodInvocationAdapter(invocation), returnValue);
         } else {

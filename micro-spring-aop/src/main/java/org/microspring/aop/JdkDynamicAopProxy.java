@@ -5,9 +5,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 
-/**
- * JDK-based AopProxy implementation that uses JDK dynamic proxies.
- */
+
 public class JdkDynamicAopProxy implements AopProxy, InvocationHandler {
 
     private final Object target;
@@ -31,12 +29,11 @@ public class JdkDynamicAopProxy implements AopProxy, InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        // Create method invocation with the interceptor chain
+
         ReflectiveMethodInvocation invocation = new ReflectiveMethodInvocation(
             target, method, args, interceptors
         );
         
-        // Start the interceptor chain
         return invocation.proceed();
     }
 } 

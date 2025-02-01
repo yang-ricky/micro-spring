@@ -6,9 +6,6 @@ import org.microspring.aop.adapter.MethodInvocationAdapter;
 
 import java.lang.reflect.Method;
 
-/**
- * Interceptor for handling Before advice.
- */
 public class BeforeAdviceInterceptor implements MethodInterceptor {
     private final Object aspectInstance;
     private final Method adviceMethod;
@@ -16,14 +13,12 @@ public class BeforeAdviceInterceptor implements MethodInterceptor {
     public BeforeAdviceInterceptor(Object aspectInstance, Method adviceMethod) {
         this.aspectInstance = aspectInstance;
         this.adviceMethod = adviceMethod;
-        this.adviceMethod.setAccessible(true); // Make the method accessible
+        this.adviceMethod.setAccessible(true);
     }
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
-        // Execute before advice with adapted JoinPoint
         adviceMethod.invoke(aspectInstance, new MethodInvocationAdapter(invocation));
-        // Proceed with the target method
         return invocation.proceed();
     }
 } 

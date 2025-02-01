@@ -7,9 +7,7 @@ import org.microspring.aop.ReflectiveMethodInvocation;
 
 import java.lang.reflect.Method;
 
-/**
- * Interceptor for handling Around advice.
- */
+
 public class AroundAdviceInterceptor implements MethodInterceptor {
     private final Object aspectInstance;
     private final Method adviceMethod;
@@ -22,15 +20,10 @@ public class AroundAdviceInterceptor implements MethodInterceptor {
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
-        // Create ProceedingJoinPoint from MethodInvocation
         ProceedingJoinPoint pjp = new MethodInvocationProceedingJoinPoint(invocation);
-        // Execute around advice with ProceedingJoinPoint
         return adviceMethod.invoke(aspectInstance, pjp);
     }
 
-    /**
-     * Adapts MethodInvocation to ProceedingJoinPoint interface
-     */
     private static class MethodInvocationProceedingJoinPoint implements ProceedingJoinPoint {
         private final MethodInvocation methodInvocation;
 
@@ -66,7 +59,6 @@ public class AroundAdviceInterceptor implements MethodInterceptor {
 
         @Override
         public Object proceed(Object[] args) throws Throwable {
-            // Create a new MethodInvocation with the new arguments
             return new ReflectiveMethodInvocation(
                 methodInvocation.getTarget(),
                 methodInvocation.getMethod(),
