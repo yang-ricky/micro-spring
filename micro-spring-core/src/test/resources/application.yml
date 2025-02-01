@@ -1,0 +1,7 @@
+app:
+  name: from-yaml
+  version: 1.0.0
+  default:
+    yaml: from-yaml
+server:
+  port: 8080 

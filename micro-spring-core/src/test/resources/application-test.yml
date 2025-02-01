@@ -1,0 +1,6 @@
+app:
+  name: from-profile-yaml
+  profile:
+    specific: from-profile-yaml
+server:
+  port: 8082 
