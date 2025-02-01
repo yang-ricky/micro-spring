@@ -6,6 +6,8 @@ import org.microspring.core.DefaultBeanDefinition;
 import org.microspring.aop.advice.LogAdvice;
 import org.microspring.aop.annotation.Loggable;
 import org.microspring.aop.support.LoggingBeanPostProcessor;
+import org.microspring.aop.interceptor.LoggingMethodInterceptor;
+import java.util.Collections;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -142,5 +144,39 @@ public class AopProxyTest {
         } finally {
             System.setOut(originalOut);
         }
+    }
+
+    // Test interface
+    interface Calculator {
+        int add(int a, int b);
+    }
+
+    // Test implementation
+    static class SimpleCalculator implements Calculator {
+        @Override
+        public int add(int a, int b) {
+            return a + b;
+        }
+    }
+
+    @Test
+    public void testProxyWithLoggingInterceptor() {
+        // Create target object
+        Calculator target = new SimpleCalculator();
+        
+        // Create proxy with logging interceptor
+        AopProxy proxy = new JdkDynamicAopProxy(
+            target, 
+            Collections.singletonList(new LoggingMethodInterceptor())
+        );
+        
+        // Get proxy object
+        Calculator proxyObject = (Calculator) proxy.getProxy();
+        
+        // Execute method - should log before and after
+        int result = proxyObject.add(5, 3);
+        
+        // Verify result
+        assertEquals(8, result);
     }
 } 
