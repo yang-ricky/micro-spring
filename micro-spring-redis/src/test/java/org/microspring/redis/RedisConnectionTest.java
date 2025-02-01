@@ -30,14 +30,11 @@ public class RedisConnectionTest {
     public static void setUpClass() throws Exception {
         try {
             redisPort = findFreePort();
-            logger.info("Starting embedded Redis on port {}", redisPort);
             
             redisServer = new RedisServer(redisPort);
             
             redisServer.start();
-            logger.info("Embedded Redis started successfully");
         } catch (Exception e) {
-            logger.error("Failed to start embedded Redis", e);
             throw e;
         }
     }
@@ -47,7 +44,6 @@ public class RedisConnectionTest {
         try {
             if (redisServer != null) {
                 redisServer.stop();
-                logger.info("Embedded Redis stopped");
             }
         } catch (Exception e) {
             logger.error("Error stopping Redis server", e);
@@ -59,7 +55,6 @@ public class RedisConnectionTest {
         try {
             connection = new RedisConnection();
             connection.connect("localhost", redisPort);
-            logger.info("Test connection established");
         } catch (Exception e) {
             logger.error("Failed to establish test connection", e);
             throw e;
@@ -71,7 +66,6 @@ public class RedisConnectionTest {
         try {
             if (connection != null) {
                 connection.close();
-                logger.info("Test connection closed");
             }
         } catch (Exception e) {
             logger.error("Error closing test connection", e);
@@ -80,7 +74,6 @@ public class RedisConnectionTest {
     
     @Test
     public void testPing() throws Exception {
-        logger.info("Testing PING command");
         String response = connection.ping();
         assertEquals("PONG", response);
     }
@@ -88,7 +81,6 @@ public class RedisConnectionTest {
     @Test
     public void testEcho() throws Exception {
         String message = "Hello Redis";
-        logger.info("Testing ECHO command with message: {}", message);
         String response = connection.echo(message);
         assertEquals(message, response);
     }
@@ -98,11 +90,9 @@ public class RedisConnectionTest {
         String key = "test:key";
         String value = "test value";
         
-        logger.info("Testing SET command with key: {}, value: {}", key, value);
         String setResponse = connection.set(key, value);
         assertEquals("OK", setResponse);
         
-        logger.info("Testing GET command with key: {}", key);
         String getResponse = connection.get(key);
         assertEquals(value, getResponse);
     }

@@ -20,14 +20,12 @@ public class RedisConnection implements AutoCloseable {
         socket = new Socket(host, port);
         reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-        logger.info("Connected to Redis at {}:{}", host, port);
     }
 
     @Override
     public void close() throws IOException {
         if (socket != null && !socket.isClosed()) {
             socket.close();
-            logger.info("Connection closed");
         }
     }
 
@@ -69,18 +67,9 @@ public class RedisConnection implements AutoCloseable {
         try (RedisConnection conn = new RedisConnection()) {
             conn.connect("localhost", 6379);
             
-            // Test PING
-            logger.info("PING response: {}", conn.ping());
-            
-            // Test ECHO
-            logger.info("ECHO response: {}", conn.echo("Hello Redis!"));
-            
             // Test SET and GET
             String key = "test:key";
             String value = "Hello from Micro-Spring-Redis!";
-            
-            logger.info("SET response: {}", conn.set(key, value));
-            logger.info("GET response: {}", conn.get(key));
             
         } catch (IOException e) {
             logger.error("Error during Redis operations", e);

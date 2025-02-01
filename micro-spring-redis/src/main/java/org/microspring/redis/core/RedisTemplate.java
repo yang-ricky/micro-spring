@@ -22,6 +22,7 @@ public class RedisTemplate<K, V> {
     private SetOperations<K, V> setOps;
     private ListOperations<K, V> listOps;
     private HashOperations<K, String, V> hashOps;
+    private ZSetOperations<K, V> zSetOps;
     
     public RedisTemplate() {
         // Default to StringRedisSerializer
@@ -78,6 +79,13 @@ public class RedisTemplate<K, V> {
             hashOps = new DefaultHashOperations<>(this);
         }
         return hashOps;
+    }
+
+    public ZSetOperations<K, V> opsForZSet() {
+        if (zSetOps == null) {
+            zSetOps = new DefaultZSetOperations<>(this);
+        }
+        return zSetOps;
     }
     
     // Helper method to serialize key
