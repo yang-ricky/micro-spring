@@ -28,6 +28,7 @@ import org.microspring.core.exception.BeanCreationException;
 import org.microspring.core.exception.NoSuchBeanDefinitionException;
 import org.microspring.beans.factory.annotation.Value;
 import org.microspring.beans.factory.FactoryBean;
+import org.microspring.core.env.Environment;
 
 public class DefaultBeanFactory implements BeanFactory {
     
@@ -42,6 +43,20 @@ public class DefaultBeanFactory implements BeanFactory {
     
     private final List<BeanPostProcessor> beanPostProcessors = new ArrayList<>();
     
+    private Environment environment;
+
+    public void removeBeanDefinition(String beanName) {
+        this.beanDefinitionMap.remove(beanName);
+    }
+
+    public Environment getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
+    }
+
     public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition) {
         this.beanDefinitionMap.put(beanName, beanDefinition);
     }
