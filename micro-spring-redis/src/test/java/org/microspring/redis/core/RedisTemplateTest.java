@@ -15,7 +15,10 @@ import redis.embedded.RedisServer;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.*;
@@ -100,10 +103,12 @@ public class RedisTemplateTest {
             template.setValueSerializer(new StringRedisSerializer());
             
             // Setup JSON template
+            JsonRedisSerializer<TestUser> jsonSerializer = new JsonRedisSerializer<>(TestUser.class);
             jsonTemplate = new RedisTemplate<>();
             jsonTemplate.setConnection(connection);
             jsonTemplate.setKeySerializer(new StringRedisSerializer());
-            jsonTemplate.setValueSerializer(new JsonRedisSerializer<>(TestUser.class));
+            jsonTemplate.setValueSerializer(jsonSerializer);
+            jsonTemplate.setHashValueSerializer(jsonSerializer);
             
             logger.info("Test connection established");
         } catch (Exception e) {
@@ -207,5 +212,147 @@ public class RedisTemplateTest {
         assertEquals(user, retrieved);
         assertEquals("John Doe", retrieved.getName());
         assertEquals(30, retrieved.getAge());
+    }
+
+    @Test
+    public void testListOperations() {
+        ListOperations<String, String> ops = template.opsForList();
+        String key = "test:list";
+
+        logger.info("Testing LPUSH operation");
+        Long pushCount = ops.leftPush(key, "first");
+        assertEquals(Long.valueOf(1), pushCount);
+
+        logger.info("Testing RPUSH operation");
+        pushCount = ops.rightPush(key, "last");
+        assertEquals(Long.valueOf(2), pushCount);
+
+        logger.info("Testing LPUSH multiple values");
+        pushCount = ops.leftPushAll(key, "one", "two", "three");
+        assertEquals(Long.valueOf(5), pushCount);
+
+        logger.info("Testing LLEN operation");
+        Long size = ops.size(key);
+        assertEquals(Long.valueOf(5), size);
+
+        logger.info("Testing LRANGE operation");
+        List<String> range = ops.range(key, 0, -1);
+        assertEquals(Arrays.asList("three", "two", "one", "first", "last"), range);
+
+        logger.info("Testing LINDEX operation");
+        String element = ops.index(key, 2);
+        assertEquals("one", element);
+
+        logger.info("Testing LSET operation");
+        ops.set(key, 1, "modified");
+        range = ops.range(key, 0, -1);
+        assertEquals(Arrays.asList("three", "modified", "one", "first", "last"), range);
+
+        logger.info("Testing LPOP operation");
+        String popped = ops.leftPop(key);
+        assertEquals("three", popped);
+
+        logger.info("Testing RPOP operation");
+        popped = ops.rightPop(key);
+        assertEquals("last", popped);
+
+        logger.info("Testing LTRIM operation");
+        ops.trim(key, 0, 1);
+        range = ops.range(key, 0, -1);
+        assertEquals(Arrays.asList("modified", "one"), range);
+
+        logger.info("Testing LREM operation");
+        ops.rightPushAll(key, "one", "one", "one");
+        Long removed = ops.remove(key, 2, "one");
+        assertEquals(Long.valueOf(2), removed);
+        range = ops.range(key, 0, -1);
+        assertEquals(Arrays.asList("modified", "one", "one"), range);
+    }
+
+    @Test
+    public void testHashOperations() {
+        HashOperations<String, String, String> ops = template.opsForHash();
+        String key = "test:hash";
+
+        logger.info("Testing HSET operation");
+        ops.put(key, "field1", "value1");
+        ops.put(key, "field2", "value2");
+
+        logger.info("Testing HGET operation");
+        String value = ops.get(key, "field1");
+        assertEquals("value1", value);
+
+        logger.info("Testing HMSET operation");
+        Map<String, String> map = new HashMap<>();
+        map.put("field3", "value3");
+        map.put("field4", "value4");
+        ops.putAll(key, map);
+
+        logger.info("Testing HLEN operation");
+        Long size = ops.size(key);
+        assertEquals(Long.valueOf(4), size);
+
+        logger.info("Testing HEXISTS operation");
+        assertTrue(ops.hasKey(key, "field1"));
+        assertFalse(ops.hasKey(key, "nonexistent"));
+
+        logger.info("Testing HGETALL operation");
+        Map<String, String> entries = ops.entries(key);
+        assertEquals(4, entries.size());
+        assertEquals("value1", entries.get("field1"));
+        assertEquals("value2", entries.get("field2"));
+        assertEquals("value3", entries.get("field3"));
+        assertEquals("value4", entries.get("field4"));
+
+        logger.info("Testing HKEYS operation");
+        Set<String> keys = ops.keys(key);
+        assertEquals(new HashSet<>(Arrays.asList("field1", "field2", "field3", "field4")), keys);
+
+        logger.info("Testing HVALS operation");
+        List<String> values = ops.values(key);
+        assertTrue(values.containsAll(Arrays.asList("value1", "value2", "value3", "value4")));
+
+        logger.info("Testing HDEL operation");
+        Long deleted = ops.delete(key, "field1", "field2");
+        assertEquals(Long.valueOf(2), deleted);
+        assertNull(ops.get(key, "field1"));
+
+        logger.info("Testing HINCRBY operation");
+        ops.put(key, "counter", "10");
+        Long newValue = ops.increment(key, "counter", 5);
+        assertEquals(Long.valueOf(15), newValue);
+
+        logger.info("Testing HINCRBYFLOAT operation");
+        ops.put(key, "price", "10.5");
+        Double newPrice = ops.increment(key, "price", 2.5);
+        assertEquals(Double.valueOf(13.0), newPrice);
+
+        logger.info("Testing HSETNX operation");
+        assertTrue(ops.putIfAbsent(key, "newfield", "newvalue"));
+        assertFalse(ops.putIfAbsent(key, "newfield", "anothervalue"));
+        assertEquals("newvalue", ops.get(key, "newfield"));
+    }
+
+    @Test
+    public void testHashOperationsWithJson() {
+        HashOperations<String, String, TestUser> ops = jsonTemplate.opsForHash();
+        String key = "test:hash:users";
+
+        TestUser user1 = new TestUser("John", 30);
+        TestUser user2 = new TestUser("Jane", 25);
+
+        logger.info("Testing Hash operations with JSON serialization");
+        ops.put(key, "user1", user1);
+        ops.put(key, "user2", user2);
+
+        TestUser retrieved1 = ops.get(key, "user1");
+        assertEquals(user1, retrieved1);
+        assertEquals("John", retrieved1.getName());
+        assertEquals(30, retrieved1.getAge());
+
+        Map<String, TestUser> entries = ops.entries(key);
+        assertEquals(2, entries.size());
+        assertEquals(user1, entries.get("user1"));
+        assertEquals(user2, entries.get("user2"));
     }
 } 
