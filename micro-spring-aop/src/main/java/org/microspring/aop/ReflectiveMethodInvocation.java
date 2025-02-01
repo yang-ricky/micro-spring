@@ -49,4 +49,12 @@ public class ReflectiveMethodInvocation implements MethodInvocation {
         MethodInterceptor interceptor = interceptors.get(++currentInterceptorIndex);
         return interceptor.invoke(this);
     }
+
+    /**
+     * Get the list of interceptors for this method invocation.
+     * @return the list of interceptors
+     */
+    public List<MethodInterceptor> getInterceptors() {
+        return interceptors;
+    }
 } 
